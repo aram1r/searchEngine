@@ -1,0 +1,13 @@
+{
+  "properties": [
+    {
+      "name": "html-parser-service-impl.user-agent",
+      "type": "java.lang.String",
+      "description": "Description for htmlParserServiceImpl.user-agent."
+    },
+    {
+      "name": "html-parser-service-impl.referrer",
+      "type": "java.lang.String",
+      "description": "Description for htmlParserServiceImpl.referrer."
+    }
+  ] }

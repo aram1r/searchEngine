@@ -12,4 +12,6 @@ public interface SiteRepository extends CrudRepository<Site, Integer> {
     void deleteAllByUrl(String url);
 
     void deleteByUrl(String url);
+
+    Site getSiteByUrl(String url);
 }

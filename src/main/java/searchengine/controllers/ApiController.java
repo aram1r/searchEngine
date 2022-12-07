@@ -36,7 +36,7 @@ public class ApiController {
         return ResponseEntity.ok(statisticsService.getStatistics());
     }
 
-    @PostMapping("/startIndexing")
+    @GetMapping("/startIndexing")
     public ResponseEntity<String> startIndexing() {
         return indexService.startIndexing();
     }

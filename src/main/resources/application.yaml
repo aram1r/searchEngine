@@ -1,4 +1,14 @@
 # example values
+html:
+  parser:
+    service:
+      impl:
+        user-agent: HeliontSearchBot
+        referrer: google.com
+
+html-parser-service-impl:
+  user-agent: HeliontSearchBot
+  referrer: google.com
 
 indexing-settings:
   sites:

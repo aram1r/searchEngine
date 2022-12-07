@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.config.SitesList;
+import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.model.Status;
 import searchengine.repositories.SiteRepository;
@@ -20,6 +21,12 @@ public class IndexServiceImpl implements IndexService{
     SitesList sitesList;
     HtmlSeparatorServiceImpl htmlSeparatorService;
     SiteRepository siteRepository;
+//    HtmlParserServiceImpl htmlParserService;
+//
+//    @Autowired
+//    public void setHtmlParserService(HtmlParserServiceImpl htmlParserService) {
+//        this.htmlParserService = htmlParserService;
+//    }
 
     @Autowired
     public void setSiteRepository(SiteRepository siteRepository) {
@@ -30,7 +37,6 @@ public class IndexServiceImpl implements IndexService{
     public void setUrlTaskPool(URLTaskPool urlTaskPool) {
         this.urlTaskPool = urlTaskPool;
     }
-
 
     @Autowired
     public void setSitesList(SitesList sitesList) {
@@ -47,7 +53,7 @@ public class IndexServiceImpl implements IndexService{
         for (Site site : sitesList.getSites()) {
             deleteSite(site);
             saveSite(site);
-            indexSite(site);
+            indexSite(getSiteByURL(site));
         }
         return null;
     }
@@ -56,14 +62,19 @@ public class IndexServiceImpl implements IndexService{
         siteRepository.save(new Site(Status.INDEXING, LocalDateTime.now(), null, site.getUrl(), site.getName()));
     }
 
-
     public synchronized void deleteSite(Site site) {
         siteRepository.deleteByUrl(site.getUrl());
     }
 
-    @Override
+    public synchronized Site getSiteByURL(Site site) {
+        return siteRepository.getSiteByUrl(site.getUrl());
+    }
+
     public void indexSite(Site site) {
+        Page page = new Page();
+        page.setPath(site.getUrl()+"/");
         HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl();
+        htmlParserService.setPage(page);
         htmlParserService.setSite(site);
         urlTaskPool.submit(htmlParserService);
     }

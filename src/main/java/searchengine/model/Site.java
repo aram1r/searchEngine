@@ -16,7 +16,7 @@ public class Site {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private int id;
+    private Integer id;
 
     @Column
     @Enumerated(EnumType.STRING)
@@ -36,7 +36,8 @@ public class Site {
     @Column(name="name", nullable = false)
     private String name;
 
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "site")
+    @OneToMany(cascade = {CascadeType.DETACH, CascadeType.MERGE,
+            CascadeType.PERSIST, CascadeType.REFRESH}, mappedBy = "site")
     private List<Page> pageList;
 
     public Site(Status status, LocalDateTime statusTime, String lastError, String url, String name) {
