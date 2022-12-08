@@ -26,8 +26,8 @@ public class Page {
     @Lob
     private String content;
 
-    @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "site_id")
+    @ManyToOne(cascade = {CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH})
+    @JoinColumn(name = "site_id", insertable = false, updatable = false)
     private Site site;
 
     @Override

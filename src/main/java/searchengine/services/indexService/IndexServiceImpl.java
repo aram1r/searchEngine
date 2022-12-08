@@ -50,10 +50,12 @@ public class IndexServiceImpl implements IndexService{
 
     @Override
     public ResponseEntity<String> startIndexing() {
+        deleteAllSites();
         for (Site site : sitesList.getSites()) {
-            deleteSite(site);
             saveSite(site);
-            indexSite(getSiteByURL(site));
+        }
+        for (Site site : siteRepository.findAll()) {
+            indexSite(site);
         }
         return null;
     }
@@ -77,5 +79,9 @@ public class IndexServiceImpl implements IndexService{
         htmlParserService.setPage(page);
         htmlParserService.setSite(site);
         urlTaskPool.submit(htmlParserService);
+    }
+
+    public void deleteAllSites() {
+        siteRepository.deleteAll();
     }
 }

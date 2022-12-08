@@ -88,5 +88,8 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     @Synchronized
     private void savePage(Page page) {
         pageRepository.save(page);
+        for (Page page1 : pageRepository.findAll()) {
+            System.out.println(page1.toString());
+        }
     }
 }

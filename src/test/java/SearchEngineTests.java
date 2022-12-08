@@ -60,6 +60,7 @@ public class SearchEngineTests {
         page.setPath("asdfa");
         page.setResponseCode(400);
         pageRepository.save(page);
+        System.out.println("1");
     }
 
     @Test
