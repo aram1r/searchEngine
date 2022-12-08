@@ -30,14 +30,17 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
         globally_quoted_identifiers: true
         show-sql: true
+        format_sql: true
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
 
 logging:
   level:
     com.graduation.work.searchwebengine:
       service: WARN
+    org:
+      hibernate:
+        type: trace
   file:
     name: ${java.io.tmpdir}/app.log
   pattern:

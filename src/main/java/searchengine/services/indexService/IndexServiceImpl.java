@@ -73,11 +73,7 @@ public class IndexServiceImpl implements IndexService{
     }
 
     public void indexSite(Site site) {
-        Page page = new Page();
-        page.setPath(site.getUrl()+"/");
-        HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl();
-        htmlParserService.setPage(page);
-        htmlParserService.setSite(site);
+        HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site);
         urlTaskPool.submit(htmlParserService);
     }
 

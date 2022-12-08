@@ -13,7 +13,7 @@ import java.util.Objects;
 public class Page {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
     @Column
@@ -26,20 +26,24 @@ public class Page {
     @Lob
     private String content;
 
-    @ManyToOne(cascade = {CascadeType.MERGE, CascadeType.DETACH, CascadeType.REFRESH})
-    @JoinColumn(name = "site_id", insertable = false, updatable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "site_id", nullable = false)
     private Site site;
+
+    public Page(String path) {
+        this.path = path;
+    }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Page page = (Page) o;
-        return path.equals(page.path) && site.equals(page.site);
+        return path.equals(page.path);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(path, site);
+        return Objects.hash(path);
     }
 }

@@ -3,15 +3,18 @@ package searchengine.services.indexService.htmlParserService;
 import lombok.*;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import searchengine.config.AppProps;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.repositories.PageRepository;
-
-import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
@@ -29,10 +32,15 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     private static AppProps appProps;
 
-    @Value("${html-parser-service-impl.user-agent}")
-    private String userAgent;
 
     private static PageRepository pageRepository;
+
+    private Logger logger;
+
+    @Autowired
+    public void setLogger() {
+        this.logger = LoggerFactory.getLogger("HtmlParser");;
+    }
 
     @Autowired
     public void setAppProps(AppProps appProps) {
@@ -51,22 +59,66 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         result = new HashSet<>();
     }
 
+    public HtmlParserServiceImpl(Site site, Page page, HashSet<Page> result) {
+        this.site = site;
+        this.page = page;
+        this.result = result;
+    }
+
     @Override
     protected void compute() {
         processPage(page.getPath());
         savePage(page);
-//        HashSet<Page> subtasks = new HashSet<>();
-//        //Считаем количество слэшей в текущем адресе
-//        long countBackslash = site.getUrl().chars().filter(ch -> ch == '/').count();
-//        if (!result.contains(page)) {
-//            result.add(page);
-//            forkURLs(page, countBackslash);
-//        }
+        HashMap<String, HtmlParserServiceImpl> subTasks = new HashMap<>();
+        //Считаем количество слэшей в текущем адресе
+        long countBackslash = page.getPath().chars().filter(ch -> ch == '/').count();
+        if (!result.contains(page)) {
+            result.add(page);
+            forkURLs(page, countBackslash, subTasks);
+            collectResults(subTasks);
+        }
 
     }
 
-    private void forkURLs(Page page, long countBackslash) {
+    private void forkURLs(Page page, long countBackslash, HashMap<String, HtmlParserServiceImpl> subtasks) {
+        if (page.getResponseCode()==200) {
+            extractLinks(subtasks, countBackslash, page);
+            subtasks.forEach((k, v) -> {
+                v.fork();
+            });
+        }
+    }
 
+    private void extractLinks(HashMap<String, HtmlParserServiceImpl> subTasks, long countBackslash, Page page) {
+        Document document = new Document(page.getContent());
+        Elements links = document.select("href");
+//        Elements links = new Document(page.getContent()).select("href");
+        for (Element element : links) {
+            String urlLink = element.attr("abs:href");
+            if (validUrl(subTasks, countBackslash, urlLink)) {
+                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink), result));
+            }
+//            if (urlLink.contains(site.getUrl())) {
+//                if (urlLink.chars().filter(ch -> ch == '/').count()>= countBackslash) {
+//                    if (!result.contains(urlLink) && !subTasks.containsKey(urlLink)) {
+//                        if ((urlLink.endsWith("/") || urlLink.endsWith("html"))) {
+//                            subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink), result));
+//                        }
+//                    }
+//                }
+//            }
+        }
+    }
+
+    private boolean validUrl(HashMap<String, HtmlParserServiceImpl> subTasks, long countBackslash, String urlLink) {
+        if (urlLink.contains(site.getUrl()) && urlLink.chars().filter(ch -> ch == '/').count()>= countBackslash) {
+            Page page = new Page(urlLink);
+            page.setSite(site);
+            if (!result.contains(page) && !subTasks.containsKey(urlLink)) {
+                return urlLink.endsWith("/") || urlLink.endsWith("html");
+            }
+        }
+        return false;
     }
 
     private void processPage (String url) {
@@ -85,11 +137,18 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         }
     }
 
+    private void collectResults(HashMap<String, HtmlParserServiceImpl> subtasks) {
+        try {
+            subtasks.forEach((k, v) -> {
+                v.join();
+            });
+        } catch (Exception e) {
+            logger.warn("Ошибка при Join " + e.getMessage());
+        }
+    }
+
     @Synchronized
     private void savePage(Page page) {
         pageRepository.save(page);
-        for (Page page1 : pageRepository.findAll()) {
-            System.out.println(page1.toString());
-        }
     }
 }
