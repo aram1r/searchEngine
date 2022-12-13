@@ -55,7 +55,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     public HtmlParserServiceImpl(Site site) {
         this.site = site;
         this.page = new Page();
-        page.setPath(site.getUrl());
+        page.setPath("/");
         result = new HashSet<>();
     }
 
@@ -90,12 +90,12 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     }
 
     private void extractLinks(HashMap<String, HtmlParserServiceImpl> subTasks, long countBackslash, Page page) {
-        Document document = new Document(page.getContent());
-        Elements links = document.select("href");
-//        Elements links = new Document(page.getContent()).select("href");
+        Document document = Jsoup.parse(page.getContent());
+        Elements links = document.select("a");
         for (Element element : links) {
-            String urlLink = element.attr("abs:href");
-            if (validUrl(subTasks, countBackslash, urlLink)) {
+            String urlLink = element.absUrl("href");
+            if (urlLink.contains(site.getUrl()) && validUrl(subTasks, countBackslash, urlLink)) {
+                urlLink.replace(site.getUrl(), "");
                 subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink), result));
             }
 //            if (urlLink.contains(site.getUrl())) {
@@ -111,7 +111,8 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     }
 
     private boolean validUrl(HashMap<String, HtmlParserServiceImpl> subTasks, long countBackslash, String urlLink) {
-        if (urlLink.contains(site.getUrl()) && urlLink.chars().filter(ch -> ch == '/').count()>= countBackslash) {
+//        if (urlLink.contains(site.getUrl()) && urlLink.chars().filter(ch -> ch == '/').count()>= countBackslash)
+        if (urlLink.chars().filter(ch -> ch == '/').count()>= countBackslash) {
             Page page = new Page(urlLink);
             page.setSite(site);
             if (!result.contains(page) && !subTasks.containsKey(urlLink)) {
@@ -124,9 +125,9 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     private void processPage (String url) {
         try {
             Thread.sleep(ThreadLocalRandom.current().nextLong(501, 5000));
-            Connection.Response response = Jsoup.connect(url).userAgent(appProps.getUserAgent())
+            Connection.Response response = Jsoup.connect(site.getUrl()+url).userAgent(appProps.getUserAgent())
                     .referrer(appProps.getReferrer()).execute();
-            page.setPath(url.replace(site.getUrl(), ""));
+            page.setPath(url.replace(site.getUrl(), "/"));
             page.setSite(site);
             page.setResponseCode(response.statusCode());
             if (page.getResponseCode()==200) {
