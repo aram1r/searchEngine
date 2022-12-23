@@ -7,12 +7,14 @@ import searchengine.config.SitesList;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.model.Status;
+import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.services.indexService.htmlParserService.HtmlParserService;
 import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
 import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 
 @Service
 public class IndexServiceImpl implements IndexService{
@@ -21,12 +23,7 @@ public class IndexServiceImpl implements IndexService{
     SitesList sitesList;
     HtmlSeparatorServiceImpl htmlSeparatorService;
     SiteRepository siteRepository;
-//    HtmlParserServiceImpl htmlParserService;
-//
-//    @Autowired
-//    public void setHtmlParserService(HtmlParserServiceImpl htmlParserService) {
-//        this.htmlParserService = htmlParserService;
-//    }
+    PageRepository pageRepository;
 
     @Autowired
     public void setSiteRepository(SiteRepository siteRepository) {
@@ -46,6 +43,11 @@ public class IndexServiceImpl implements IndexService{
     @Autowired
     public void setHtmlSeparatorService(HtmlSeparatorServiceImpl htmlSeparatorService) {
         this.htmlSeparatorService = htmlSeparatorService;
+    }
+
+    @Autowired
+    public void setPageRepository(PageRepository pageRepository) {
+        this.pageRepository = pageRepository;
     }
 
     @Override

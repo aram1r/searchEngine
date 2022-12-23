@@ -14,10 +14,11 @@ import searchengine.config.AppProps;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.repositories.PageRepository;
+
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Getter
@@ -28,18 +29,21 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     private Site site;
     private Page page;
-    private HashSet<Page> result;
-
+    private HashMap<String, Page> result;
+    private boolean parent;
     private static AppProps appProps;
-
-
-    private static PageRepository pageRepository;
-
+    private PageRepository pageRepository;
     private Logger logger;
+    private static AtomicInteger threadCount;
 
     @Autowired
     public void setLogger() {
-        this.logger = LoggerFactory.getLogger("HtmlParser");;
+        this.logger = LoggerFactory.getLogger("HtmlParser");
+    }
+
+    @Autowired
+    public void setPageRepository(PageRepository pageRepository) {
+        this.pageRepository = pageRepository;
     }
 
     @Autowired
@@ -47,75 +51,90 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         HtmlParserServiceImpl.appProps = appProps;
     }
 
-    @Autowired
-    public void setPageRepository(PageRepository pageRepository) {
-        HtmlParserServiceImpl.pageRepository = pageRepository;
-    }
-
     public HtmlParserServiceImpl(Site site) {
         this.site = site;
         this.page = new Page();
         page.setPath("/");
-        result = new HashSet<>();
+        result = new HashMap<>();
+        parent = true;
+        threadCount = new AtomicInteger();
     }
 
-    public HtmlParserServiceImpl(Site site, Page page, HashSet<Page> result) {
+    public HtmlParserServiceImpl(Site site, HashMap<String, Page> result) {
+        this.site = site;
+        this.page = new Page();
+        page.setPath("/");
+        this.result = result;
+        threadCount.getAndIncrement();
+    }
+
+    public HtmlParserServiceImpl(Site site, Page page, HashMap<String, Page> result) {
         this.site = site;
         this.page = page;
         this.result = result;
+        threadCount.getAndIncrement();
     }
 
     @Override
     protected void compute() {
-        processPage(page.getPath());
-        savePage(page);
-        HashMap<String, HtmlParserServiceImpl> subTasks = new HashMap<>();
         //Считаем количество слэшей в текущем адресе
-        long countBackslash = page.getPath().chars().filter(ch -> ch == '/').count();
-        if (!result.contains(page)) {
-            result.add(page);
+        if (!result.containsKey(page.getPath())) {
+            processPage(page.getPath());
+            page.setPath(page.getPath().replace(site.getUrl(), "/"));
+            HashMap<String, HtmlParserServiceImpl> subTasks = new HashMap<>();
+            long countBackslash = page.getPath().chars().filter(ch -> ch == '/').count();
+            result.put(page.getPath(), page);
             forkURLs(page, countBackslash, subTasks);
             collectResults(subTasks);
         }
-
+        if (parent) {
+            pageRepository.saveAll(result.values());
+        }
+        threadCount.getAndDecrement();
     }
+
+    //TODO Попробовать сделать subtasks общим для одного сайта, посмотреть на время выполнения
+//    @Override
+//    protected void compute() {
+//        //Считаем количество слэшей в текущем адресе
+//        if (!result.containsKey(page.getPath())) {
+//            processPage(page.getPath());
+//            page.setPath(page.getPath().replace(site.getUrl(), "/"));
+//            HashMap<String, HtmlParserServiceImpl> subTasks = new HashMap<>();
+//            long countBackslash = page.getPath().chars().filter(ch -> ch == '/').count();
+//            result.put(page.getPath(), page);
+//            forkURLs(page, countBackslash, subTasks);
+//            collectResults(subTasks);
+//        }
+//        if (parent) {
+//            pageRepository.saveAll(result.values());
+//        }
+//    }
 
     private void forkURLs(Page page, long countBackslash, HashMap<String, HtmlParserServiceImpl> subtasks) {
         if (page.getResponseCode()==200) {
             extractLinks(subtasks, countBackslash, page);
-            subtasks.forEach((k, v) -> {
-                v.fork();
-            });
+            subtasks.forEach((k, v) -> v.fork());
         }
     }
 
     private void extractLinks(HashMap<String, HtmlParserServiceImpl> subTasks, long countBackslash, Page page) {
-        Document document = Jsoup.parse(page.getContent());
-        Elements links = document.select("a");
+        Document document = Jsoup.parse(page.getContent(), site.getUrl());
+        Elements links = document.select("a[href]");
         for (Element element : links) {
             String urlLink = element.absUrl("href");
             if (urlLink.contains(site.getUrl()) && validUrl(subTasks, countBackslash, urlLink)) {
-                urlLink.replace(site.getUrl(), "");
+                urlLink = urlLink.replace(site.getUrl(), "");
                 subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink), result));
             }
-//            if (urlLink.contains(site.getUrl())) {
-//                if (urlLink.chars().filter(ch -> ch == '/').count()>= countBackslash) {
-//                    if (!result.contains(urlLink) && !subTasks.containsKey(urlLink)) {
-//                        if ((urlLink.endsWith("/") || urlLink.endsWith("html"))) {
-//                            subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink), result));
-//                        }
-//                    }
-//                }
-//            }
         }
     }
 
     private boolean validUrl(HashMap<String, HtmlParserServiceImpl> subTasks, long countBackslash, String urlLink) {
-//        if (urlLink.contains(site.getUrl()) && urlLink.chars().filter(ch -> ch == '/').count()>= countBackslash)
         if (urlLink.chars().filter(ch -> ch == '/').count()>= countBackslash) {
-            Page page = new Page(urlLink);
+            Page page = new Page(urlLink.replace(site.getUrl(), ""));
             page.setSite(site);
-            if (!result.contains(page) && !subTasks.containsKey(urlLink)) {
+            if (!result.containsKey(page.getPath()) && !subTasks.containsKey(urlLink)) {
                 return urlLink.endsWith("/") || urlLink.endsWith("html");
             }
         }
@@ -127,11 +146,12 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
             Thread.sleep(ThreadLocalRandom.current().nextLong(501, 5000));
             Connection.Response response = Jsoup.connect(site.getUrl()+url).userAgent(appProps.getUserAgent())
                     .referrer(appProps.getReferrer()).execute();
-            page.setPath(url.replace(site.getUrl(), "/"));
             page.setSite(site);
             page.setResponseCode(response.statusCode());
             if (page.getResponseCode()==200) {
                 page.setContent(response.parse().toString());
+            } else {
+                page.setContent("");
             }
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -140,16 +160,9 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     private void collectResults(HashMap<String, HtmlParserServiceImpl> subtasks) {
         try {
-            subtasks.forEach((k, v) -> {
-                v.join();
-            });
+            subtasks.forEach((k, v) -> v.join());
         } catch (Exception e) {
             logger.warn("Ошибка при Join " + e.getMessage());
         }
-    }
-
-    @Synchronized
-    private void savePage(Page page) {
-        pageRepository.save(page);
     }
 }
