@@ -35,7 +35,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     private Page page;
     private static ConcurrentHashMap<String, Page> result;
     private static AppProps appProps;
-    PageRepository pageRepository;
+    private PageRepository pageRepository;
     private Logger logger;
     private static AtomicInteger threadCount;
     private static Set<String> tasksInWork;
