@@ -4,17 +4,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.config.SitesList;
-import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.model.Status;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.services.indexService.htmlParserService.HtmlParserService;
 import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
 import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
-
 import java.time.LocalDateTime;
-import java.util.HashMap;
 
 @Service
 public class IndexServiceImpl implements IndexService{

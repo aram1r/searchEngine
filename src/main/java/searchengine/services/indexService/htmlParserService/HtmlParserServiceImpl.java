@@ -15,7 +15,11 @@ import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.repositories.PageRepository;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,12 +33,13 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     private Site site;
     private Page page;
-    private HashMap<String, Page> result;
-    private boolean parent;
+    private static ConcurrentHashMap<String, Page> result;
     private static AppProps appProps;
-    private PageRepository pageRepository;
+    PageRepository pageRepository;
     private Logger logger;
     private static AtomicInteger threadCount;
+    private static Set<String> tasksInWork;
+    private static Long timestamp;
 
     @Autowired
     public void setLogger() {
@@ -55,23 +60,17 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         this.site = site;
         this.page = new Page();
         page.setPath("/");
-        result = new HashMap<>();
-        parent = true;
+        result = new ConcurrentHashMap<>();
+        tasksInWork = Collections.synchronizedSet(new HashSet<>());
+        tasksInWork.add("/");
         threadCount = new AtomicInteger();
+        timestamp = System.currentTimeMillis();
     }
 
-    public HtmlParserServiceImpl(Site site, HashMap<String, Page> result) {
-        this.site = site;
-        this.page = new Page();
-        page.setPath("/");
-        this.result = result;
-        threadCount.getAndIncrement();
-    }
 
-    public HtmlParserServiceImpl(Site site, Page page, HashMap<String, Page> result) {
+    public HtmlParserServiceImpl(Site site, Page page) {
         this.site = site;
         this.page = page;
-        this.result = result;
         threadCount.getAndIncrement();
     }
 
@@ -87,7 +86,9 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
             forkURLs(page, countBackslash, subTasks);
             collectResults(subTasks);
         }
-        if (parent) {
+        if (result.size() == tasksInWork.size()) {
+            System.out.println((System.currentTimeMillis()-timestamp)/60000 + " заняло минут");
+            System.out.println(site.getName() + " парсинг закончен");
             pageRepository.saveAll(result.values());
         }
         threadCount.getAndDecrement();
@@ -114,7 +115,12 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     private void forkURLs(Page page, long countBackslash, HashMap<String, HtmlParserServiceImpl> subtasks) {
         if (page.getResponseCode()==200) {
             extractLinks(subtasks, countBackslash, page);
-            subtasks.forEach((k, v) -> v.fork());
+            subtasks.forEach((k, v) -> {
+                if (!tasksInWork.contains(k)) {
+                    v.fork();
+                    tasksInWork.add(k);
+                }
+            });
         }
     }
 
@@ -125,7 +131,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
             String urlLink = element.absUrl("href");
             if (urlLink.contains(site.getUrl()) && validUrl(subTasks, countBackslash, urlLink)) {
                 urlLink = urlLink.replace(site.getUrl(), "");
-                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink), result));
+                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink)));
             }
         }
     }
