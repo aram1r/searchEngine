@@ -46,6 +46,8 @@ public class IndexServiceImpl implements IndexService{
         this.pageRepository = pageRepository;
     }
 
+    //TODO придумать как начинать обработку лемм на страницах, как понять что закончен парсинг того или иного сайта
+    //во времени.
     @Override
     public ResponseEntity<String> startIndexing() {
         deleteAllSites();
@@ -70,6 +72,7 @@ public class IndexServiceImpl implements IndexService{
         return siteRepository.getSiteByUrl(site.getUrl());
     }
 
+    //TODO прописать изменение статуса сайта в бд
     public void indexSite(Site site) {
         HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site);
         urlTaskPool.submit(htmlParserService);

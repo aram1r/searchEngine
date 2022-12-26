@@ -35,9 +35,8 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     private Page page;
     private static ConcurrentHashMap<String, Page> result;
     private static AppProps appProps;
-    private PageRepository pageRepository;
+    private static PageRepository pageRepository;
     private Logger logger;
-    private static AtomicInteger threadCount;
     private static Set<String> tasksInWork;
     private static Long timestamp;
 
@@ -48,7 +47,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     @Autowired
     public void setPageRepository(PageRepository pageRepository) {
-        this.pageRepository = pageRepository;
+        HtmlParserServiceImpl.pageRepository = pageRepository;
     }
 
     @Autowired
@@ -63,7 +62,6 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         result = new ConcurrentHashMap<>();
         tasksInWork = Collections.synchronizedSet(new HashSet<>());
         tasksInWork.add("/");
-        threadCount = new AtomicInteger();
         timestamp = System.currentTimeMillis();
     }
 
@@ -71,7 +69,6 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     public HtmlParserServiceImpl(Site site, Page page) {
         this.site = site;
         this.page = page;
-        threadCount.getAndIncrement();
     }
 
     @Override
@@ -86,31 +83,15 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
             forkURLs(page, countBackslash, subTasks);
             collectResults(subTasks);
         }
+        //Сохраняем результат
         if (result.size() == tasksInWork.size()) {
             System.out.println((System.currentTimeMillis()-timestamp)/60000 + " заняло минут");
+            timestamp = System.currentTimeMillis();
             System.out.println(site.getName() + " парсинг закончен");
             pageRepository.saveAll(result.values());
+            System.out.println("Сохранение " + (System.currentTimeMillis()-timestamp)/60000 + " заняло минут");
         }
-        threadCount.getAndDecrement();
     }
-
-    //TODO Попробовать сделать subtasks общим для одного сайта, посмотреть на время выполнения
-//    @Override
-//    protected void compute() {
-//        //Считаем количество слэшей в текущем адресе
-//        if (!result.containsKey(page.getPath())) {
-//            processPage(page.getPath());
-//            page.setPath(page.getPath().replace(site.getUrl(), "/"));
-//            HashMap<String, HtmlParserServiceImpl> subTasks = new HashMap<>();
-//            long countBackslash = page.getPath().chars().filter(ch -> ch == '/').count();
-//            result.put(page.getPath(), page);
-//            forkURLs(page, countBackslash, subTasks);
-//            collectResults(subTasks);
-//        }
-//        if (parent) {
-//            pageRepository.saveAll(result.values());
-//        }
-//    }
 
     private void forkURLs(Page page, long countBackslash, HashMap<String, HtmlParserServiceImpl> subtasks) {
         if (page.getResponseCode()==200) {
