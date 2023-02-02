@@ -10,6 +10,8 @@ import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
 import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.taskPools.URLTaskPool;
+
 import java.time.LocalDateTime;
 
 @Service
@@ -20,6 +22,7 @@ public class IndexServiceImpl implements IndexService{
     HtmlSeparatorServiceImpl htmlSeparatorService;
     SiteRepository siteRepository;
     PageRepository pageRepository;
+
 
     @Autowired
     public void setSiteRepository(SiteRepository siteRepository) {
@@ -72,8 +75,9 @@ public class IndexServiceImpl implements IndexService{
         return siteRepository.getSiteByUrl(site.getUrl());
     }
 
-    //TODO прописать изменение статуса сайта в бд
     public void indexSite(Site site) {
+        site.setStatus(Status.INDEXING);
+        siteRepository.save(site);
         HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site);
         urlTaskPool.submit(htmlParserService);
     }

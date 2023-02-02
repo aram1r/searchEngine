@@ -1,6 +1,9 @@
 package searchengine.services.indexService.htmlParserService;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -14,6 +17,8 @@ import searchengine.config.AppProps;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.repositories.PageRepository;
+import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.taskPools.URLTaskPool;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,7 +27,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Getter
@@ -31,14 +35,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 @AllArgsConstructor
 public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParserService{
 
+    private URLTaskPool taskPool;
     private Site site;
     private Page page;
-    private static ConcurrentHashMap<String, Page> result;
+    private ConcurrentHashMap<String, Page> result;
     private static AppProps appProps;
     private static PageRepository pageRepository;
     private Logger logger;
-    private static Set<String> tasksInWork;
+    private Set<String> tasksInWork;
     private static Long timestamp;
+
+    @Autowired
+    public void setTaskPool(URLTaskPool taskPool) {
+        this.taskPool = taskPool;
+    }
 
     @Autowired
     public void setLogger() {
@@ -66,14 +76,16 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     }
 
 
-    public HtmlParserServiceImpl(Site site, Page page) {
+    public HtmlParserServiceImpl(Site site, Page page, Set<String> tasksInWork, ConcurrentHashMap<String, Page> result) {
         this.site = site;
         this.page = page;
+        this.tasksInWork = tasksInWork;
+        this.result = result;
     }
 
     @Override
     protected void compute() {
-        //Считаем количество слэшей в текущем адресе
+//        Считаем количество слэшей в текущем адресе
         if (!result.containsKey(page.getPath())) {
             processPage(page.getPath());
             page.setPath(page.getPath().replace(site.getUrl(), "/"));
@@ -85,12 +97,20 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         }
         //Сохраняем результат
         if (result.size() == tasksInWork.size()) {
-            System.out.println((System.currentTimeMillis()-timestamp)/60000 + " заняло минут");
+            System.out.println("Pasrsing took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
             timestamp = System.currentTimeMillis();
-            System.out.println(site.getName() + " парсинг закончен");
+            System.out.println(site.getName() + " parsing ended");
             pageRepository.saveAll(result.values());
-            System.out.println("Сохранение " + (System.currentTimeMillis()-timestamp)/60000 + " заняло минут");
+            System.out.println("Saving took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
+            //Начинаем обработку лемм сайта
+            separateLemmas();
         }
+    }
+
+    //TODO проверить не будет ли проблем из-за форка, может быть стоит сабмитить в таскпул
+    private void separateLemmas() {
+        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
+        taskPool.submit(htmlSeparatorService);
     }
 
     private void forkURLs(Page page, long countBackslash, HashMap<String, HtmlParserServiceImpl> subtasks) {
@@ -112,7 +132,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
             String urlLink = element.absUrl("href");
             if (urlLink.contains(site.getUrl()) && validUrl(subTasks, countBackslash, urlLink)) {
                 urlLink = urlLink.replace(site.getUrl(), "");
-                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink)));
+                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink), tasksInWork, result));
             }
         }
     }

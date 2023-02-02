@@ -1,4 +1,4 @@
-package searchengine.services.indexService;
+package searchengine.services.indexService.taskPools;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -9,7 +9,7 @@ import java.util.concurrent.ForkJoinPool;
 public class URLTaskPool extends ForkJoinPool {
     boolean isIndexing;
 
-    public URLTaskPool () {
+    public URLTaskPool() {
         isIndexing=false;
     }
 

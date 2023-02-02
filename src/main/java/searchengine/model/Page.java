@@ -1,13 +1,14 @@
 package searchengine.model;
 
+import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.*;
+import java.util.List;
 import java.util.Objects;
 
 @Entity
-@Table(name = "page", schema = "search_engine", indexes = @Index(columnList = "path"))
+@Table(name = "page", schema = "search_engine", indexes = @jakarta.persistence.Index(columnList = "path"))
 @Data
 @NoArgsConstructor
 public class Page {
@@ -22,8 +23,8 @@ public class Page {
     @Column(nullable = false)
     private Integer responseCode;
 
-    @Column
     @Lob
+    @Column(length = 100000)
     private String content;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -46,4 +47,7 @@ public class Page {
     public int hashCode() {
         return Objects.hash(path);
     }
+
+    @OneToMany(cascade = CascadeType.REFRESH, mappedBy = "lemma")
+    private List<Lemma> lemmaList;
 }

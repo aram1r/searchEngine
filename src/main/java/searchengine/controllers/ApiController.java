@@ -23,10 +23,6 @@ public class ApiController {
         this.indexService = indexService;
     }
 
-
-
-
-
     public ApiController(StatisticsService statisticsService) {
         this.statisticsService = statisticsService;
     }

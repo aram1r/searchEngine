@@ -2,7 +2,7 @@ package searchengine.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import searchengine.services.indexService.URLTaskPool;
+import searchengine.services.indexService.taskPools.URLTaskPool;
 
 @Configuration
 public class Config {
@@ -10,4 +10,5 @@ public class Config {
     public URLTaskPool taskPool () {
         return new URLTaskPool();
     }
+
 }

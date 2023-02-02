@@ -1,10 +1,11 @@
 package searchengine.model;
 
+import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.Type;
 
-import javax.persistence.*;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,7 +21,6 @@ public class Site {
 
     @Column
     @Enumerated(EnumType.STRING)
-    @Type(type = "searchengine.model.Status")
     private Status status;
 
     @Column(name="status_time")
