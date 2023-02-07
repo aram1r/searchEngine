@@ -3,7 +3,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import searchengine.Application;
-import searchengine.config.SitesList;
+import searchengine.configuration.SitesList;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.model.Status;

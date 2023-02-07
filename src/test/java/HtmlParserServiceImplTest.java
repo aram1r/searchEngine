@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import searchengine.Application;
-import searchengine.config.AppProps;
+import searchengine.configuration.AppProps;
 import searchengine.model.Page;
 import searchengine.model.Site;
 

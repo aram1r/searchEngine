@@ -1,4 +1,4 @@
-package searchengine.config;
+package searchengine.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,4 +11,8 @@ public class Config {
         return new URLTaskPool();
     }
 
+    @Bean
+    public AppProps appProps() {
+        return new AppProps();
+    }
 }

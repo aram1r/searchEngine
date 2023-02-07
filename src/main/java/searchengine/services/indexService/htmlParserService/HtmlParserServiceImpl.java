@@ -13,7 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import searchengine.config.AppProps;
+import searchengine.configuration.AppProps;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.repositories.PageRepository;
@@ -28,41 +28,41 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
 
-@Service
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Service
 public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParserService{
 
-    private URLTaskPool taskPool;
+
+    private static URLTaskPool urlTaskPool;
     private Site site;
     private Page page;
     private ConcurrentHashMap<String, Page> result;
     private static AppProps appProps;
+
     private static PageRepository pageRepository;
-    private Logger logger;
+    private static Logger logger;
     private Set<String> tasksInWork;
     private static Long timestamp;
-
     @Autowired
-    public void setTaskPool(URLTaskPool taskPool) {
-        this.taskPool = taskPool;
+    public void setUrlTaskPool(URLTaskPool urlTaskPool) {
+        HtmlParserServiceImpl.urlTaskPool = urlTaskPool;
+    }
+    @Autowired
+    public void setAppProps(AppProps appProps) {
+        HtmlParserServiceImpl.appProps = appProps;
     }
 
     @Autowired
     public void setLogger() {
-        this.logger = LoggerFactory.getLogger("HtmlParser");
+        logger = LoggerFactory.getLogger("HtmlParser");
     }
 
     @Autowired
     public void setPageRepository(PageRepository pageRepository) {
         HtmlParserServiceImpl.pageRepository = pageRepository;
-    }
-
-    @Autowired
-    public void setAppProps(AppProps appProps) {
-        HtmlParserServiceImpl.appProps = appProps;
     }
 
     public HtmlParserServiceImpl(Site site) {
@@ -109,8 +109,9 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     //TODO проверить не будет ли проблем из-за форка, может быть стоит сабмитить в таскпул
     private void separateLemmas() {
-        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
-        taskPool.submit(htmlSeparatorService);
+        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl();
+        htmlSeparatorService.setSite(site);
+        urlTaskPool.submit(htmlSeparatorService);
     }
 
     private void forkURLs(Page page, long countBackslash, HashMap<String, HtmlParserServiceImpl> subtasks) {
@@ -118,7 +119,8 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
             extractLinks(subtasks, countBackslash, page);
             subtasks.forEach((k, v) -> {
                 if (!tasksInWork.contains(k)) {
-                    v.fork();
+//                    v.fork();
+                    urlTaskPool.execute(v);
                     tasksInWork.add(k);
                 }
             });

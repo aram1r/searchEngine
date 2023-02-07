@@ -2,6 +2,8 @@ package searchengine.services.indexService.taskPools;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.stereotype.Component;
+
 import java.util.concurrent.ForkJoinPool;
 
 @Setter

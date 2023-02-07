@@ -46,4 +46,5 @@ public class Site {
         this.url = url;
         this.name = name;
     }
+
 }

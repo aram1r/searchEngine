@@ -3,13 +3,12 @@ package searchengine.services.indexService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import searchengine.config.SitesList;
+import searchengine.configuration.SitesList;
 import searchengine.model.Site;
 import searchengine.model.Status;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
-import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
 import searchengine.services.indexService.taskPools.URLTaskPool;
 
 import java.time.LocalDateTime;
@@ -19,10 +18,8 @@ public class IndexServiceImpl implements IndexService{
 
     URLTaskPool urlTaskPool;
     SitesList sitesList;
-    HtmlSeparatorServiceImpl htmlSeparatorService;
     SiteRepository siteRepository;
     PageRepository pageRepository;
-
 
     @Autowired
     public void setSiteRepository(SiteRepository siteRepository) {
@@ -39,10 +36,6 @@ public class IndexServiceImpl implements IndexService{
         this.sitesList = sitesList;
     }
 
-    @Autowired
-    public void setHtmlSeparatorService(HtmlSeparatorServiceImpl htmlSeparatorService) {
-        this.htmlSeparatorService = htmlSeparatorService;
-    }
 
     @Autowired
     public void setPageRepository(PageRepository pageRepository) {
@@ -79,6 +72,8 @@ public class IndexServiceImpl implements IndexService{
         site.setStatus(Status.INDEXING);
         siteRepository.save(site);
         HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site);
+//        htmlParserService.setAppProps(appProps);
+//        htmlParserService.setUrlTaskPool(urlTaskPool);
         urlTaskPool.submit(htmlParserService);
     }
 

@@ -3,6 +3,8 @@ package searchengine.model;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import javax.persistence.criteria.CriteriaBuilder;
+
 @Entity
 @Table(name = "lemma", schema = "search_engine")
 @Data
@@ -27,5 +29,4 @@ public class Lemma {
         this.frequency = frequency;
         this.site = site;
     }
-
 }
