@@ -36,7 +36,7 @@ public class Site {
     @Column(name="name", nullable = false)
     private String name;
 
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "site")
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "site", fetch = FetchType.LAZY)
     private List<Page> pageList;
 
     public Site(Status status, LocalDateTime statusTime, String lastError, String url, String name) {
@@ -47,4 +47,11 @@ public class Site {
         this.name = name;
     }
 
+    @Override
+    public String toString() {
+        return "Site{" +
+                "url='" + url + '\'' +
+                ", name='" + name + '\'' +
+                '}';
+    }
 }
