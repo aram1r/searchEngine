@@ -17,7 +17,7 @@ import searchengine.configuration.AppProps;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.repositories.PageRepository;
-import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl2;
 import searchengine.services.indexService.taskPools.URLTaskPool;
 
 import java.util.Collections;
@@ -28,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
 
+
+//TODO проверить как работает join, скорей всего он собирает все результаты и не требуется проверка совпадения количества задач
 @Getter
 @Setter
 @NoArgsConstructor
@@ -109,7 +111,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     //TODO проверить не будет ли проблем из-за форка, может быть стоит сабмитить в таскпул
     private void separateLemmas() {
-        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl();
+        HtmlSeparatorServiceImpl2 htmlSeparatorService = new HtmlSeparatorServiceImpl2();
         htmlSeparatorService.setSite(site);
         urlTaskPool.submit(htmlSeparatorService);
     }

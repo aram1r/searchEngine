@@ -4,10 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import searchengine.Application;
 import searchengine.model.Site;
+import searchengine.model.Status;
 import searchengine.repositories.LemmaRepository;
-import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl2;
 import searchengine.services.indexService.taskPools.URLTaskPool;
 
 @SpringBootTest(classes = {Application.class})
@@ -43,7 +43,9 @@ public class HtmlSeparatorServiceImplTest {
 
     @Test
     void separateLemmasTest() {
-        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
+        HtmlSeparatorServiceImpl2 htmlSeparatorService = new HtmlSeparatorServiceImpl2(site);
+        site.setStatus(Status.INDEXING);
+        siteRepository.save(site);
         urlTaskPool.submit(htmlSeparatorService);
     }
 }
