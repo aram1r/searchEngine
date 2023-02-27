@@ -103,7 +103,19 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                    <executable>true</executable>
+                    <jvmArguments>
+                        -Xms2g
+                        -Xmx2g
+                    </jvmArguments>
                 </configuration>
+                <executions>
+                    <execution>
+                        <configuration>
+                            <mainClass>searchengine.Application;</mainClass>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

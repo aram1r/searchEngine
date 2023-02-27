@@ -16,17 +16,16 @@ import org.springframework.stereotype.Service;
 import searchengine.configuration.AppProps;
 import searchengine.model.Page;
 import searchengine.model.Site;
+import searchengine.model.Status;
 import searchengine.repositories.PageRepository;
-import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl2;
-import searchengine.services.indexService.taskPools.URLTaskPool;
-
-import java.util.Collections;
+import searchengine.repositories.SiteRepository;
+import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.taskPools.TaskPool;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
+
 
 
 //TODO проверить как работает join, скорей всего он собирает все результаты и не требуется проверка совпадения количества задач
@@ -38,19 +37,26 @@ import java.util.concurrent.ThreadLocalRandom;
 public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParserService{
 
 
-    private static URLTaskPool urlTaskPool;
+    private static TaskPool taskPool;
     private Site site;
     private Page page;
     private ConcurrentHashMap<String, Page> result;
+
+    private static final HashMap<String, HtmlParserServiceImpl> allTasks = new HashMap<>();
     private static AppProps appProps;
 
     private static PageRepository pageRepository;
+
+    private static SiteRepository siteRepository;
     private static Logger logger;
-    private Set<String> tasksInWork;
+    private static final HashMap<String, HtmlParserServiceImpl> tasksInWork = new HashMap<>();
     private static Long timestamp;
+
+    private boolean parent;
+
     @Autowired
-    public void setUrlTaskPool(URLTaskPool urlTaskPool) {
-        HtmlParserServiceImpl.urlTaskPool = urlTaskPool;
+    public void setTaskPool(TaskPool taskPool) {
+        HtmlParserServiceImpl.taskPool = taskPool;
     }
     @Autowired
     public void setAppProps(AppProps appProps) {
@@ -67,63 +73,85 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         HtmlParserServiceImpl.pageRepository = pageRepository;
     }
 
+    @Autowired
+    public void setSiteRepository(SiteRepository siteRepository) {
+        HtmlParserServiceImpl.siteRepository = siteRepository;
+    }
+
     public HtmlParserServiceImpl(Site site) {
         this.site = site;
         this.page = new Page();
         page.setPath("/");
         result = new ConcurrentHashMap<>();
-        tasksInWork = Collections.synchronizedSet(new HashSet<>());
-        tasksInWork.add("/");
+//        tasksInWork = Collections.synchronizedSet(new HashSet<>());
+//        tasksInWork.add("/");
         timestamp = System.currentTimeMillis();
+        parent = true;
     }
 
 
-    public HtmlParserServiceImpl(Site site, Page page, Set<String> tasksInWork, ConcurrentHashMap<String, Page> result) {
+    public HtmlParserServiceImpl(Site site, Page page, ConcurrentHashMap<String, Page> result) {
         this.site = site;
         this.page = page;
-        this.tasksInWork = tasksInWork;
+//        this.tasksInWork = tasksInWork;
         this.result = result;
+        parent = false;
     }
 
     @Override
     protected void compute() {
-//        Считаем количество слэшей в текущем адресе
-        if (!result.containsKey(page.getPath())) {
-            processPage(page.getPath());
-            page.setPath(page.getPath().replace(site.getUrl(), "/"));
-            HashMap<String, HtmlParserServiceImpl> subTasks = new HashMap<>();
-            long countBackslash = page.getPath().chars().filter(ch -> ch == '/').count();
-            result.put(page.getPath(), page);
-            forkURLs(page, countBackslash, subTasks);
-            collectResults(subTasks);
-        }
-        //Сохраняем результат
-        if (result.size() == tasksInWork.size()) {
-            System.out.println("Pasrsing took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
-            timestamp = System.currentTimeMillis();
-            System.out.println(site.getName() + " parsing ended");
-            pageRepository.saveAll(result.values());
-            System.out.println("Saving took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
-            //Начинаем обработку лемм сайта
-            separateLemmas();
+        if (!taskPool.isShutdown()) {
+            if (!result.containsKey(page.getPath())) {
+                processPage(page.getPath());
+                page.setPath(page.getPath().replace(site.getUrl(), "/"));
+                long countBackslash = page.getPath().chars().filter(ch -> ch == '/').count();
+                result.put(page.getPath(), page);
+                HashMap<String, HtmlParserServiceImpl> subTasks = new HashMap<>();
+                forkURLs(page, countBackslash, subTasks);
+                //TODO Переписать замер времени на АОП и логгирование
+                if (parent) {
+                    collectResults(subTasks);
+                    System.out.println("Parsing took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
+                    timestamp = System.currentTimeMillis();
+                    System.out.println(site.getName() + " parsing ended");
+                    pageRepository.saveAll(result.values());
+                    System.out.println("Saving took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
+                    if (!taskPool.isShutdown()) {
+                        //Начинаем обработку лемм сайта
+                        separateLemmas();
+                    } else {
+                        site.setStatus(Status.FAILED);
+                        siteRepository.save(site);
+                    }
+                }
+            }
+//            if (result.size() == tasksInWork.size()) {
+//                System.out.println("Pasrsing took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
+//                timestamp = System.currentTimeMillis();
+//                System.out.println(site.getName() + " parsing ended");
+//                pageRepository.saveAll(result.values());
+//                System.out.println("Saving took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
+//                //Начинаем обработку лемм сайта
+//                separateLemmas();
+//            }
         }
     }
 
     //TODO проверить не будет ли проблем из-за форка, может быть стоит сабмитить в таскпул
     private void separateLemmas() {
-        HtmlSeparatorServiceImpl2 htmlSeparatorService = new HtmlSeparatorServiceImpl2();
+        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl();
         htmlSeparatorService.setSite(site);
-        urlTaskPool.submit(htmlSeparatorService);
+        taskPool.submit(htmlSeparatorService);
     }
 
     private void forkURLs(Page page, long countBackslash, HashMap<String, HtmlParserServiceImpl> subtasks) {
         if (page.getResponseCode()==200) {
             extractLinks(subtasks, countBackslash, page);
             subtasks.forEach((k, v) -> {
-                if (!tasksInWork.contains(k)) {
-//                    v.fork();
-                    urlTaskPool.execute(v);
-                    tasksInWork.add(k);
+                if (!tasksInWork.containsKey(k)) {
+                    v.fork();
+//                    taskPool.execute(v);
+                    tasksInWork.put(k, v);
                 }
             });
         }
@@ -136,7 +164,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
             String urlLink = element.absUrl("href");
             if (urlLink.contains(site.getUrl()) && validUrl(subTasks, countBackslash, urlLink)) {
                 urlLink = urlLink.replace(site.getUrl(), "");
-                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink), tasksInWork, result));
+                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink, 418), result));
             }
         }
     }
@@ -154,7 +182,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     private void processPage (String url) {
         try {
-            Thread.sleep(ThreadLocalRandom.current().nextLong(501, 5000));
+            Thread.sleep(ThreadLocalRandom.current().nextLong(501, 4000));
             Connection.Response response = Jsoup.connect(site.getUrl()+url).userAgent(appProps.getUserAgent())
                     .referrer(appProps.getReferrer()).execute();
             page.setSite(site);

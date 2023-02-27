@@ -3,6 +3,7 @@ package searchengine.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.id.IncrementGenerator;
 
 import java.util.List;
 import java.util.Objects;
@@ -33,6 +34,11 @@ public class Page {
 
     public Page(String path) {
         this.path = path;
+    }
+
+    public Page(String path, Integer responseCode) {
+        this(path);
+        this.responseCode = responseCode;
     }
 
     @Override

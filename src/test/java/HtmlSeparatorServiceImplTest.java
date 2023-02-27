@@ -7,8 +7,8 @@ import searchengine.model.Site;
 import searchengine.model.Status;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl2;
-import searchengine.services.indexService.taskPools.URLTaskPool;
+import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.taskPools.TaskPool;
 
 @SpringBootTest(classes = {Application.class})
 public class HtmlSeparatorServiceImplTest {
@@ -17,13 +17,13 @@ public class HtmlSeparatorServiceImplTest {
 
     private LemmaRepository lemmaRepository;
 
-    private static URLTaskPool urlTaskPool;
+    private static TaskPool taskPool;
 
     private Site site;
 
     @Autowired
-    public void setUrlTaskPool(URLTaskPool urlTaskPool) {
-        HtmlSeparatorServiceImplTest.urlTaskPool = urlTaskPool;
+    public void setUrlTaskPool(TaskPool taskPool) {
+        HtmlSeparatorServiceImplTest.taskPool = taskPool;
     }
 
     @Autowired
@@ -43,9 +43,9 @@ public class HtmlSeparatorServiceImplTest {
 
     @Test
     void separateLemmasTest() {
-        HtmlSeparatorServiceImpl2 htmlSeparatorService = new HtmlSeparatorServiceImpl2(site);
+        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
         site.setStatus(Status.INDEXING);
         siteRepository.save(site);
-        urlTaskPool.submit(htmlSeparatorService);
+        taskPool.submit(htmlSeparatorService);
     }
 }

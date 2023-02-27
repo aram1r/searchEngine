@@ -12,4 +12,8 @@ public interface IndexService {
     void saveSite(Site site);
 
     void indexSite(Site site);
+
+//    ResponseEntity<String> startSeparation();
+
+    ResponseEntity<String> stopIndexing();
 }

@@ -6,20 +6,29 @@ import org.springframework.stereotype.Service;
 import searchengine.configuration.SitesList;
 import searchengine.model.Site;
 import searchengine.model.Status;
+import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
-import searchengine.services.indexService.taskPools.URLTaskPool;
+import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.taskPools.TaskPool;
 
 import java.time.LocalDateTime;
 
 @Service
 public class IndexServiceImpl implements IndexService{
 
-    URLTaskPool urlTaskPool;
+    TaskPool taskPool;
     SitesList sitesList;
     SiteRepository siteRepository;
     PageRepository pageRepository;
+
+    LemmaRepository lemmaRepository;
+
+    @Autowired
+    public void setLemmaRepository(LemmaRepository lemmaRepository) {
+        this.lemmaRepository = lemmaRepository;
+    }
 
     @Autowired
     public void setSiteRepository(SiteRepository siteRepository) {
@@ -27,8 +36,8 @@ public class IndexServiceImpl implements IndexService{
     }
 
     @Autowired
-    public void setUrlTaskPool(URLTaskPool urlTaskPool) {
-        this.urlTaskPool = urlTaskPool;
+    public void setUrlTaskPool(TaskPool taskPool) {
+        this.taskPool = taskPool;
     }
 
     @Autowired
@@ -46,6 +55,8 @@ public class IndexServiceImpl implements IndexService{
     //во времени.
     @Override
     public ResponseEntity<String> startIndexing() {
+        deleteAllLemmas();
+        deleteAllPages();
         deleteAllSites();
         for (Site site : sitesList.getSites()) {
             saveSite(site);
@@ -53,6 +64,11 @@ public class IndexServiceImpl implements IndexService{
         for (Site site : siteRepository.findAll()) {
             indexSite(site);
         }
+        return null;
+    }
+
+    public ResponseEntity<String> stopIndexing() {
+        taskPool.shutdown();
         return null;
     }
 
@@ -72,12 +88,27 @@ public class IndexServiceImpl implements IndexService{
         site.setStatus(Status.INDEXING);
         siteRepository.save(site);
         HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site);
-//        htmlParserService.setAppProps(appProps);
-//        htmlParserService.setUrlTaskPool(urlTaskPool);
-        urlTaskPool.submit(htmlParserService);
+        taskPool.submit(htmlParserService);
     }
+
+//    @Override
+//    public ResponseEntity<String> startSeparation() {
+//        Site site = siteRepository.findAll().iterator().next();
+//        lemmaRepository.deleteAllBySite(site);
+//        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
+//        site.setStatus(Status.INDEXING);
+//        siteRepository.save(site);
+//        taskPool.submit(htmlSeparatorService);
+//        return null;
+//    }
 
     public void deleteAllSites() {
         siteRepository.deleteAll();
+    }
+
+    public void deleteAllPages() {pageRepository.deleteAll();}
+
+    public void deleteAllLemmas() {
+        lemmaRepository.deleteAll();
     }
 }
