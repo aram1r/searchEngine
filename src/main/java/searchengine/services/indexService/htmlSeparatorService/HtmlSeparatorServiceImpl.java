@@ -172,9 +172,9 @@ public class HtmlSeparatorServiceImpl extends RecursiveAction {
             lemmaRepository.saveAll(result.values());
             site.setStatus(Status.INDEXED);
             siteRepository.save(site);
-        } catch (Exception e) {
-            logger.warn("Ошибка при Join " + e.getMessage());
-            System.out.println(e.getMessage());
+        } catch (Exception ignored) {
+            logger.warn(ignored.getMessage());
+            System.out.println(ignored.getMessage());
         }
     }
 }

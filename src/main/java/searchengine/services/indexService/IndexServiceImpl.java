@@ -11,9 +11,11 @@ import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
 import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.taskPools.ExecuteThread;
 import searchengine.services.indexService.taskPools.TaskPool;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.ExecutorService;
 
 @Service
 public class IndexServiceImpl implements IndexService{
@@ -24,6 +26,13 @@ public class IndexServiceImpl implements IndexService{
     PageRepository pageRepository;
 
     LemmaRepository lemmaRepository;
+
+    ExecutorService executorService;
+
+    @Autowired
+    public void setExecutorService(ExecutorService executorService) {
+        this.executorService = executorService;
+    }
 
     @Autowired
     public void setLemmaRepository(LemmaRepository lemmaRepository) {
@@ -88,7 +97,8 @@ public class IndexServiceImpl implements IndexService{
         site.setStatus(Status.INDEXING);
         siteRepository.save(site);
         HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site);
-        taskPool.submit(htmlParserService);
+        executorService.submit(new ExecuteThread(htmlParserService));
+//        taskPool.submit(htmlParserService);
     }
 
 //    @Override

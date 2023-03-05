@@ -1,6 +1,5 @@
 package searchengine.services.indexService.htmlParserService;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -16,24 +15,23 @@ import org.springframework.stereotype.Service;
 import searchengine.configuration.AppProps;
 import searchengine.model.Page;
 import searchengine.model.Site;
-import searchengine.model.Status;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.taskPools.ExecuteThread;
 import searchengine.services.indexService.taskPools.TaskPool;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
-
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 //TODO проверить как работает join, скорей всего он собирает все результаты и не требуется проверка совпадения количества задач
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 @Service
 public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParserService{
 
@@ -48,10 +46,15 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     private static SiteRepository siteRepository;
     private static Logger logger;
-    private static final HashSet<String> tasksInWork = new HashSet<>();
-    private static Long timestamp;
+    private static final ConcurrentHashMap<String, HtmlParserServiceImpl> tasksInWork = new ConcurrentHashMap<>();
+    private static final Long timestamp = System.currentTimeMillis();
 
-    private boolean parent;
+    private static ExecutorService executorService;
+
+    @Autowired
+    public void setExecutorService(ExecutorService executorService) {
+        HtmlParserServiceImpl.executorService = executorService;
+    }
 
     @Autowired
     public void setTaskPool(TaskPool taskPool) {
@@ -82,9 +85,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         this.page = new Page();
         page.setPath("/");
         result = new ConcurrentHashMap<>();
-        tasksInWork.add("/");
-        timestamp = System.currentTimeMillis();
-        parent = true;
+        tasksInWork.put("/", this);
     }
 
 
@@ -92,7 +93,6 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         this.site = site;
         this.page = page;
         this.result = result;
-        parent = false;
     }
 
     @Override
@@ -105,50 +105,34 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
                 result.put(page.getPath(), page);
                 HashMap<String, HtmlParserServiceImpl> subTasks = new HashMap<>();
                 forkURLs(page, countBackslash, subTasks);
-                collectResults(subTasks);
                 //TODO Переписать замер времени на АОП и логгирование
-                if (parent) {
-                    System.out.println("Parsing took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
-                    timestamp = System.currentTimeMillis();
-                    System.out.println(site.getName() + " parsing ended");
-                    pageRepository.saveAll(result.values());
-                    System.out.println("Saving took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
-                    if (!taskPool.isShutdown()) {
-                        //Начинаем обработку лемм сайта
-                        separateLemmas();
-                    } else {
-                        site.setStatus(Status.FAILED);
-                        siteRepository.save(site);
-                    }
-                }
             }
-//            if (result.size() == tasksInWork.size()) {
-//                System.out.println("Pasrsing took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
-//                timestamp = System.currentTimeMillis();
-//                System.out.println(site.getName() + " parsing ended");
-//                pageRepository.saveAll(result.values());
-//                System.out.println("Saving took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
-//                //Начинаем обработку лемм сайта
-//                separateLemmas();
-//            }
+            if (taskIsFinished()) {
+                collectResults();
+            }
+        } else {
+            collectResults();
+            pageRepository.saveAll(result.values());
+            System.out.println("Парсинг остановлен");
         }
     }
 
     //TODO проверить не будет ли проблем из-за форка, может быть стоит сабмитить в таскпул
     private void separateLemmas() {
-        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl();
-        htmlSeparatorService.setSite(site);
-        taskPool.submit(htmlSeparatorService);
+        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
+        htmlSeparatorService.fork();
+        executorService.submit(new ExecuteThread(htmlSeparatorService));
+//        taskPool.submit(htmlSeparatorService);
     }
 
     private void forkURLs(Page page, long countBackslash, HashMap<String, HtmlParserServiceImpl> subtasks) {
         if (page.getResponseCode()==200) {
             extractLinks(subtasks, countBackslash, page);
             subtasks.forEach((k, v) -> {
-                if (!tasksInWork.contains(k)) {
+                if (!tasksInWork.containsKey(k)) {
                     v.fork();
 //                    taskPool.execute(v);
-                    tasksInWork.add(k);
+                    tasksInWork.put(k, v);
                 }
             });
         }
@@ -194,11 +178,28 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         }
     }
 
-    private void collectResults(HashMap<String, HtmlParserServiceImpl> subTasks) {
+    private void collectResults() {
         try {
-            subTasks.forEach((k, v) -> v.join());
+            //TODO поправить join
+            tasksInWork.remove("/");
+//            AtomicInteger i = new AtomicInteger();
+//            tasksInWork.forEach((k, v) -> {
+//                v.join();
+//                System.out.println(i + " из " + tasksInWork.size() + " " + k);
+//                i.getAndIncrement();
+//            });
+            System.out.println("Pasrsing took " + (System.currentTimeMillis()-timestamp)/60000 + " minutes");
+            pageRepository.saveAll(result.values());
+            //Начинаем обработку лемм сайта
+            separateLemmas();
+            taskPool.shutdownNow();
         } catch (Exception e) {
             logger.warn("Ошибка при Join " + e.getMessage());
+            System.out.println("Ошибка при join");
         }
+    }
+
+    private synchronized boolean taskIsFinished() {
+        return result.size() == tasksInWork.size();
     }
 }

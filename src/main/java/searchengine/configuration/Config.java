@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import searchengine.services.indexService.taskPools.TaskPool;
 
 import java.io.IOException;
+import java.util.concurrent.*;
 
 @Configuration
 public class Config {
@@ -20,12 +21,13 @@ public class Config {
         return new AppProps();
     }
 
-//    @Bean
-//    public LuceneMorphology luceneMorphology() throws IOException {
-//        return new RussianLuceneMorphology();
-//    }
     @Bean
     public RussianLuceneMorphology luceneMorphology() throws IOException {
         return new RussianLuceneMorphology();
+    }
+
+    @Bean
+    public ExecutorService executorService() {
+        return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()-1);
     }
 }
