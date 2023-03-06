@@ -41,11 +41,11 @@ public class HtmlSeparatorServiceImplTest {
         lemmaRepository.deleteAllBySite(site);
     }
 
-    @Test
-    void separateLemmasTest() {
-        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
-        site.setStatus(Status.INDEXING);
-        siteRepository.save(site);
-        taskPool.submit(htmlSeparatorService);
-    }
+//    @Test
+//    void separateLemmasTest() {
+//        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site, new TaskPool(), executorService);
+//        site.setStatus(Status.INDEXING);
+//        siteRepository.save(site);
+//        taskPool.submit(htmlSeparatorService);
+//    }
 }

@@ -96,7 +96,7 @@ public class IndexServiceImpl implements IndexService{
     public void indexSite(Site site) {
         site.setStatus(Status.INDEXING);
         siteRepository.save(site);
-        HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site);
+        HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site, new TaskPool());
         executorService.submit(new ExecuteThread(htmlParserService));
 //        taskPool.submit(htmlParserService);
     }

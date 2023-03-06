@@ -19,13 +19,12 @@ import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
 import searchengine.services.indexService.taskPools.ExecuteThread;
+import searchengine.services.indexService.taskPools.Task;
 import searchengine.services.indexService.taskPools.TaskPool;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
 
 
 //TODO проверить как работает join, скорей всего он собирает все результаты и не требуется проверка совпадения количества задач
@@ -33,10 +32,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Setter
 @NoArgsConstructor
 @Service
-public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParserService{
+public class HtmlParserServiceImpl extends Task {
 
 
-    private static TaskPool taskPool;
+    private TaskPool taskPool;
+
     private Site site;
     private Page page;
     private ConcurrentHashMap<String, Page> result;
@@ -57,10 +57,6 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     }
 
     @Autowired
-    public void setTaskPool(TaskPool taskPool) {
-        HtmlParserServiceImpl.taskPool = taskPool;
-    }
-    @Autowired
     public void setAppProps(AppProps appProps) {
         HtmlParserServiceImpl.appProps = appProps;
     }
@@ -80,7 +76,8 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
         HtmlParserServiceImpl.siteRepository = siteRepository;
     }
 
-    public HtmlParserServiceImpl(Site site) {
+    public HtmlParserServiceImpl(Site site, TaskPool taskPool) {
+        this.taskPool = taskPool;
         this.site = site;
         this.page = new Page();
         page.setPath("/");
@@ -89,7 +86,8 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
     }
 
 
-    public HtmlParserServiceImpl(Site site, Page page, ConcurrentHashMap<String, Page> result) {
+    public HtmlParserServiceImpl(Site site, Page page, ConcurrentHashMap<String, Page> result, TaskPool taskPool) {
+        this.taskPool = taskPool;
         this.site = site;
         this.page = page;
         this.result = result;
@@ -97,7 +95,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     @Override
     protected void compute() {
-        if (!taskPool.isShutdown()) {
+        if (!executorService.isShutdown()) {
             if (!result.containsKey(page.getPath())) {
                 processPage(page.getPath());
                 page.setPath(page.getPath().replace(site.getUrl(), "/"));
@@ -119,7 +117,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
 
     //TODO проверить не будет ли проблем из-за форка, может быть стоит сабмитить в таскпул
     private void separateLemmas() {
-        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
+        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site, new TaskPool());
         htmlSeparatorService.fork();
         executorService.submit(new ExecuteThread(htmlSeparatorService));
 //        taskPool.submit(htmlSeparatorService);
@@ -145,7 +143,7 @@ public class HtmlParserServiceImpl extends RecursiveAction implements HtmlParser
             String urlLink = element.absUrl("href");
             if (urlLink.contains(site.getUrl()) && validUrl(subTasks, countBackslash, urlLink)) {
                 urlLink = urlLink.replace(site.getUrl(), "");
-                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink, 418), result));
+                subTasks.put(urlLink, new HtmlParserServiceImpl(site, new Page(urlLink, 418), result, taskPool));
             }
         }
     }

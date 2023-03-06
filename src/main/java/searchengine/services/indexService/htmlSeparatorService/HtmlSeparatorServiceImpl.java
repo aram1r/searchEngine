@@ -16,10 +16,13 @@ import searchengine.model.Status;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
+import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
+import searchengine.services.indexService.taskPools.Task;
 import searchengine.services.indexService.taskPools.TaskPool;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RecursiveAction;
 
 //TODO переписать реализацию на fork join, без этого не отловить финальную точку
@@ -28,11 +31,14 @@ import java.util.concurrent.RecursiveAction;
 @NoArgsConstructor
 @AllArgsConstructor
 @Component
-public class HtmlSeparatorServiceImpl extends RecursiveAction {
+public class HtmlSeparatorServiceImpl extends Task {
 
     private Site site;
     private Page page;
 
+    private TaskPool taskPool;
+
+    private static ExecutorService executorService;
     private static HashMap<Page, HtmlSeparatorServiceImpl> subtasks;
 
     private static Set<Page> tasksInWork;
@@ -51,18 +57,16 @@ public class HtmlSeparatorServiceImpl extends RecursiveAction {
 
     private static Boolean isActive;
 
-    private static TaskPool taskPool;
-
     private static Logger logger;
+
+    @Autowired
+    public void setExecutorService(ExecutorService executorService) {
+        HtmlSeparatorServiceImpl.executorService = executorService;
+    }
 
     @Autowired
     public void setLogger() {
         logger = LoggerFactory.getLogger("HtmlSeparator");
-    }
-
-    @Autowired
-    public void setTaskPool(TaskPool taskPool) {
-        HtmlSeparatorServiceImpl.taskPool = taskPool;
     }
 
     @Autowired
@@ -78,11 +82,12 @@ public class HtmlSeparatorServiceImpl extends RecursiveAction {
         HtmlSeparatorServiceImpl.luceneMorphology = luceneMorphology;
     }
     @Autowired
-    public static void setSiteRepository(SiteRepository siteRepository) {
+    public void setSiteRepository(SiteRepository siteRepository) {
         HtmlSeparatorServiceImpl.siteRepository = siteRepository;
     }
 
-    public HtmlSeparatorServiceImpl(Site site) {
+    public HtmlSeparatorServiceImpl(Site site, TaskPool taskPool) {
+        this.taskPool = taskPool;
         this.site = site;
         parent = true;
         tasksInWork = Collections.synchronizedSet(new HashSet<>());
@@ -90,7 +95,8 @@ public class HtmlSeparatorServiceImpl extends RecursiveAction {
         isActive = true;
     }
 
-    public HtmlSeparatorServiceImpl(boolean parent, Page page, Site site) {
+    public HtmlSeparatorServiceImpl(boolean parent, Page page, Site site, TaskPool taskPool) {
+        this.taskPool = taskPool;
         this.parent = parent;
         this.page = page;
         this.site = site;
@@ -110,7 +116,7 @@ public class HtmlSeparatorServiceImpl extends RecursiveAction {
             initializeSeparation();
             collectResults(subtasks);
         } else {
-            if (!taskPool.isShutdown()) {
+            if (!executorService.isShutdown()) {
                 String text = page.getContent();
                 List<String> words = Arrays.asList(text.toLowerCase(Locale.ROOT).split("\\s+"));
                 try {
@@ -148,7 +154,7 @@ public class HtmlSeparatorServiceImpl extends RecursiveAction {
     private void initializeSeparation() {
         Iterable<Page> pages = pageRepository.findAllBySite(site);
         for (Page page : pages) {
-            HtmlSeparatorServiceImpl separatorService = new HtmlSeparatorServiceImpl(false, page, site);
+            HtmlSeparatorServiceImpl separatorService = new HtmlSeparatorServiceImpl(false, page, site, taskPool);
             subtasks.put(page, separatorService);
         }
         subtasks.forEach((k, v) -> {
