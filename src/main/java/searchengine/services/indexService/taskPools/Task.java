@@ -15,4 +15,10 @@ import java.util.concurrent.RecursiveAction;
 public abstract class Task extends RecursiveAction {
     private TaskPool taskPool;
     private ExecutorService executorService;
+    private ExecuteThread executeThread;
+
+    protected void stopThread() throws InterruptedException {
+        executeThread.interrupt();
+        executeThread.join();
+    }
 }

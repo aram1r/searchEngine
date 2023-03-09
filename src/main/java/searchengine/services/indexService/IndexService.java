@@ -13,7 +13,7 @@ public interface IndexService {
 
     void indexSite(Site site);
 
-//    ResponseEntity<String> startSeparation();
+    ResponseEntity<String> startSeparation();
 
     ResponseEntity<String> stopIndexing();
 }

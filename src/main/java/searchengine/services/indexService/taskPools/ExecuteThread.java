@@ -13,6 +13,7 @@ public class ExecuteThread extends Thread {
 
     @Override
     public void run() {
+        task.setExecuteThread(this);
         task.getTaskPool().submit(task);
         super.run();
     }

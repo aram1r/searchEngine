@@ -191,6 +191,8 @@ public class HtmlParserServiceImpl extends Task {
             //Начинаем обработку лемм сайта
             separateLemmas();
             taskPool.shutdownNow();
+//            this.
+//            stopThread();
         } catch (Exception e) {
             logger.warn("Ошибка при Join " + e.getMessage());
             System.out.println("Ошибка при join");

@@ -101,16 +101,16 @@ public class IndexServiceImpl implements IndexService{
 //        taskPool.submit(htmlParserService);
     }
 
-//    @Override
-//    public ResponseEntity<String> startSeparation() {
-//        Site site = siteRepository.findAll().iterator().next();
-//        lemmaRepository.deleteAllBySite(site);
-//        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site);
-//        site.setStatus(Status.INDEXING);
-//        siteRepository.save(site);
-//        taskPool.submit(htmlSeparatorService);
-//        return null;
-//    }
+    @Override
+    public ResponseEntity<String> startSeparation() {
+        Site site = siteRepository.findAll().iterator().next();
+        lemmaRepository.deleteAllBySite(site);
+        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site, new TaskPool());
+        site.setStatus(Status.INDEXING);
+        siteRepository.save(site);
+        executorService.submit(new ExecuteThread(htmlSeparatorService));
+        return null;
+    }
 
     public void deleteAllSites() {
         siteRepository.deleteAll();

@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.criteria.CriteriaBuilder;
-
 @Entity
 @Table(name = "lemma", schema = "search_engine")
 @NoArgsConstructor
@@ -13,7 +11,7 @@ import javax.persistence.criteria.CriteriaBuilder;
 public class Lemma {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)

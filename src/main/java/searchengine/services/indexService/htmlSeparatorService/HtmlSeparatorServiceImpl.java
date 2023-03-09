@@ -16,14 +16,11 @@ import searchengine.model.Status;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
 import searchengine.services.indexService.taskPools.Task;
 import searchengine.services.indexService.taskPools.TaskPool;
-
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RecursiveAction;
 
 //TODO переписать реализацию на fork join, без этого не отловить финальную точку
 @Getter
@@ -165,7 +162,7 @@ public class HtmlSeparatorServiceImpl extends Task {
     private void increaseFrequency(String word) {
         Lemma lemma = result.get(word);
         lemma.setFrequency(lemma.getFrequency()+1);
-        result.put(word, lemma);
+//        result.put(word, lemma);
     }
 
         private void collectResults(HashMap<Page, HtmlSeparatorServiceImpl> subtasks) {
@@ -178,9 +175,9 @@ public class HtmlSeparatorServiceImpl extends Task {
             lemmaRepository.saveAll(result.values());
             site.setStatus(Status.INDEXED);
             siteRepository.save(site);
-        } catch (Exception ignored) {
-            logger.warn(ignored.getMessage());
-            System.out.println(ignored.getMessage());
+        } catch (Exception e) {
+            logger.warn(e.getMessage());
+            System.out.println(e.getMessage());
         }
     }
 }

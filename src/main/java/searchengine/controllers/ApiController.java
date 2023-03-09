@@ -41,8 +41,8 @@ public class ApiController {
         return indexService.stopIndexing();
     }
 
-//    @GetMapping("/startSeparation")
-//    public ResponseEntity<String> startSeparation() {
-//        return indexService.startSeparation();
-//    }
+    @GetMapping("/startSeparation")
+    public ResponseEntity<String> startSeparation() {
+        return indexService.startSeparation();
+    }
 }
