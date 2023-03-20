@@ -5,8 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.apache.lucene.morphology.LuceneMorphology;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import searchengine.model.Lemma;
@@ -14,89 +12,51 @@ import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.model.Status;
 import searchengine.repositories.LemmaRepository;
-import searchengine.repositories.PageRepository;
-import searchengine.repositories.SiteRepository;
 import searchengine.services.indexService.taskPools.Task;
 import searchengine.services.indexService.taskPools.TaskPool;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
 
-//TODO переписать реализацию на fork join, без этого не отловить финальную точку
+//TODO написать код для сохранения данных в таблицу индекс
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Component
-public class HtmlSeparatorServiceImpl extends Task {
+public class SeparationLemmaTaskImpl extends Task {
 
-    private Site site;
-    private Page page;
-
-    private TaskPool taskPool;
-
-    private static ExecutorService executorService;
-    private static HashMap<Page, HtmlSeparatorServiceImpl> subtasks;
-
-    private static Set<Page> tasksInWork;
-
-    private static PageRepository pageRepository;
+    private static HashMap<Page, SeparationLemmaTaskImpl> subtasks;
 
     private static LuceneMorphology luceneMorphology;
 
     private boolean parent;
 
-    private static final ConcurrentHashMap<String, Lemma> result = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, Lemma> result;
 
     private static LemmaRepository lemmaRepository;
 
-    private static SiteRepository siteRepository;
 
-    private static Boolean isActive;
-
-    private static Logger logger;
-
-    @Autowired
-    public void setExecutorService(ExecutorService executorService) {
-        HtmlSeparatorServiceImpl.executorService = executorService;
-    }
-
-    @Autowired
-    public void setLogger() {
-        logger = LoggerFactory.getLogger("HtmlSeparator");
-    }
-
-    @Autowired
-    public void setPageRepository(PageRepository pageRepository) {
-        HtmlSeparatorServiceImpl.pageRepository = pageRepository;
-    }
     @Autowired
     public void setLemmaRepository(LemmaRepository lemmaRepository) {
-        HtmlSeparatorServiceImpl.lemmaRepository = lemmaRepository;
+        SeparationLemmaTaskImpl.lemmaRepository = lemmaRepository;
     }
     @Autowired
     public void setLuceneMorphology(LuceneMorphology luceneMorphology) {
-        HtmlSeparatorServiceImpl.luceneMorphology = luceneMorphology;
-    }
-    @Autowired
-    public void setSiteRepository(SiteRepository siteRepository) {
-        HtmlSeparatorServiceImpl.siteRepository = siteRepository;
+        SeparationLemmaTaskImpl.luceneMorphology = luceneMorphology;
     }
 
-    public HtmlSeparatorServiceImpl(Site site, TaskPool taskPool) {
-        this.taskPool = taskPool;
-        this.site = site;
+    public SeparationLemmaTaskImpl(Site site, TaskPool taskPool) {
+        super(site, taskPool);
         parent = true;
-        tasksInWork = Collections.synchronizedSet(new HashSet<>());
         subtasks = new HashMap<>();
-        isActive = true;
+        result = new ConcurrentHashMap<>();
     }
 
-    public HtmlSeparatorServiceImpl(boolean parent, Page page, Site site, TaskPool taskPool) {
-        this.taskPool = taskPool;
+    public SeparationLemmaTaskImpl(boolean parent, Page page, Site site, TaskPool taskPool,
+                                   ConcurrentHashMap<String, Lemma> result) {
+        super(site, taskPool, page);
         this.parent = parent;
-        this.page = page;
-        this.site = site;
+        this.result = result;
     }
 
     private boolean ifWord(String word) {
@@ -113,8 +73,8 @@ public class HtmlSeparatorServiceImpl extends Task {
             initializeSeparation();
             collectResults(subtasks);
         } else {
-            if (!executorService.isShutdown()) {
-                String text = page.getContent();
+            if (!getExecutorService().isShutdown()) {
+                String text = getPage().getContent();
                 List<String> words = Arrays.asList(text.toLowerCase(Locale.ROOT).split("\\s+"));
                 try {
                     List<String> wordsToProcess = new ArrayList<>();
@@ -129,7 +89,7 @@ public class HtmlSeparatorServiceImpl extends Task {
                             String word = luceneMorphology.getNormalForms(e.replaceAll("[?!:;,.]?", "")).get(0);
                             if (word.length()>1 && ifWord(word)) {
                                 if (!result.containsKey(word)) {
-                                    result.put(word, new Lemma(word, 1, site));
+                                    result.put(word, new Lemma(word, 1, getSite()));
                                 } else {
                                     increaseFrequency(word);
                                 }
@@ -149,14 +109,13 @@ public class HtmlSeparatorServiceImpl extends Task {
     }
 
     private void initializeSeparation() {
-        Iterable<Page> pages = pageRepository.findAllBySite(site);
+        Iterable<Page> pages = getPageRepository().findAllBySite(getSite());
         for (Page page : pages) {
-            HtmlSeparatorServiceImpl separatorService = new HtmlSeparatorServiceImpl(false, page, site, taskPool);
+            SeparationLemmaTaskImpl separatorService = new SeparationLemmaTaskImpl(false, page, getSite(),
+                    getTaskPool(), result);
             subtasks.put(page, separatorService);
         }
-        subtasks.forEach((k, v) -> {
-            v.fork();
-        });
+        subtasks.forEach((k, v) -> v.fork());
     }
 
     private void increaseFrequency(String word) {
@@ -165,18 +124,18 @@ public class HtmlSeparatorServiceImpl extends Task {
 //        result.put(word, lemma);
     }
 
-        private void collectResults(HashMap<Page, HtmlSeparatorServiceImpl> subtasks) {
+        private void collectResults(HashMap<Page, SeparationLemmaTaskImpl> subtasks) {
         try {
             subtasks.forEach((k, v) -> {
-                if (!taskPool.isShutdown()) {
+                if (!getTaskPool().isShutdown()) {
                     v.join();
                 }
             });
             lemmaRepository.saveAll(result.values());
-            site.setStatus(Status.INDEXED);
-            siteRepository.save(site);
+            getSite().setStatus(Status.INDEXED);
+            getSiteRepository().save(getSite());
         } catch (Exception e) {
-            logger.warn(e.getMessage());
+            getLogger().warn(e.getMessage());
             System.out.println(e.getMessage());
         }
     }

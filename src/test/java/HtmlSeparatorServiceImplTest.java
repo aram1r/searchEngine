@@ -1,13 +1,10 @@
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import searchengine.Application;
 import searchengine.model.Site;
-import searchengine.model.Status;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
 import searchengine.services.indexService.taskPools.TaskPool;
 
 @SpringBootTest(classes = {Application.class})

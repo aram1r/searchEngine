@@ -9,8 +9,8 @@ import searchengine.model.Status;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.services.indexService.htmlParserService.HtmlParserServiceImpl;
-import searchengine.services.indexService.htmlSeparatorService.HtmlSeparatorServiceImpl;
+import searchengine.services.indexService.htmlParserService.ParserTaskImpl;
+import searchengine.services.indexService.htmlSeparatorService.SeparationLemmaTaskImpl;
 import searchengine.services.indexService.taskPools.ExecuteThread;
 import searchengine.services.indexService.taskPools.TaskPool;
 
@@ -77,6 +77,7 @@ public class IndexServiceImpl implements IndexService{
     }
 
     public ResponseEntity<String> stopIndexing() {
+        executorService.shutdown();
         taskPool.shutdown();
         return null;
     }
@@ -96,7 +97,7 @@ public class IndexServiceImpl implements IndexService{
     public void indexSite(Site site) {
         site.setStatus(Status.INDEXING);
         siteRepository.save(site);
-        HtmlParserServiceImpl htmlParserService = new HtmlParserServiceImpl(site, new TaskPool());
+        ParserTaskImpl htmlParserService = new ParserTaskImpl(site, new TaskPool());
         executorService.submit(new ExecuteThread(htmlParserService));
 //        taskPool.submit(htmlParserService);
     }
@@ -105,7 +106,7 @@ public class IndexServiceImpl implements IndexService{
     public ResponseEntity<String> startSeparation() {
         Site site = siteRepository.findAll().iterator().next();
         lemmaRepository.deleteAllBySite(site);
-        HtmlSeparatorServiceImpl htmlSeparatorService = new HtmlSeparatorServiceImpl(site, new TaskPool());
+        SeparationLemmaTaskImpl htmlSeparatorService = new SeparationLemmaTaskImpl(site, new TaskPool());
         site.setStatus(Status.INDEXING);
         siteRepository.save(site);
         executorService.submit(new ExecuteThread(htmlSeparatorService));

@@ -1,10 +1,8 @@
 package searchengine.services.indexService.htmlSeparatorService;
 
-import searchengine.model.Site;
-
 import java.io.IOException;
 
-public interface HtmlSeparatorService {
+public interface SeparationLemmaTask {
 
     void processWebpagesFromDb() throws IOException;
 

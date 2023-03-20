@@ -9,12 +9,21 @@ import lombok.Setter;
 @Getter
 public class ExecuteThread extends Thread {
 
-    Task task;
+//    Task task;
+//
+//    @Override
+//    public void run() {
+//        task.setExecuteThread(this);
+//        task.getTaskPool().submit(task);
+//        super.run();
+//    }
+
+    Task htmlService;
 
     @Override
     public void run() {
-        task.setExecuteThread(this);
-        task.getTaskPool().submit(task);
+        htmlService.setExecuteThread(this);
+        htmlService.getTaskPool().submit(htmlService);
         super.run();
     }
 }
