@@ -5,6 +5,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.Site;
 
+import java.util.List;
+
 
 @Repository
 @Transactional
@@ -16,4 +18,7 @@ public interface SiteRepository extends CrudRepository<Site, Integer> {
     Site getSiteByUrl(String url);
 
     void deleteAll();
+
+    @Override
+    List<Site> findAll();
 }

@@ -9,8 +9,11 @@ import searchengine.dto.statistics.StatisticsData;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.dto.statistics.TotalStatistics;
 import searchengine.model.Site;
+import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -23,6 +26,15 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final SitesList sites;
 
     private SiteRepository siteRepository;
+    private PageRepository pageRepository;
+
+    private LemmaRepository lemmaRepository;
+
+    @Autowired
+    public void setLemmaRepository(LemmaRepository lemmaRepository) {this.lemmaRepository = lemmaRepository;}
+
+    @Autowired
+    public void setPageRepository(PageRepository pageRepository) {this.pageRepository = pageRepository;}
 
     @Autowired
     public void setSiteRepository(SiteRepository siteRepository) {
@@ -39,29 +51,32 @@ public class StatisticsServiceImpl implements StatisticsService {
         };
 
         TotalStatistics total = new TotalStatistics();
-        total.setSites(sites.getSites().size());
+        List<Site> siteList = siteRepository.findAll();
+        total.setSites(siteList.size());
         total.setIndexing(true);
+        int totalPages = 0;
+        int totalLemmas = 0;
 
         List<DetailedStatisticsItem> detailed = new ArrayList<>();
-        List<Site> sitesList = sites.getSites();
-        for(int i = 0; i < sitesList.size(); i++) {
-            Site site = sitesList.get(i);
+        for(Site site : siteList) {
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());
             item.setUrl(site.getUrl());
-            int pages = random.nextInt(1_000);
-            int lemmas = pages * random.nextInt(1_000);
+            int pages = pageRepository.findAllBySite(site).size();
+            int lemmas = lemmaRepository.findAllBySite(site).size();
             item.setPages(pages);
             item.setLemmas(lemmas);
-            item.setStatus(statuses[i % 3]);
-            item.setError(errors[i % 3]);
-            item.setStatusTime(System.currentTimeMillis() -
-                    (random.nextInt(10_000)));
-            total.setPages(total.getPages() + pages);
-            total.setLemmas(total.getLemmas() + lemmas);
+            item.setStatus(site.getStatus().toString());
+            item.setError(site.getLastError());
+            LocalDateTime status = site.getStatusTime();
+            item.setStatusTime(status.toString());
             detailed.add(item);
-        }
 
+            totalPages+=pages;
+            totalLemmas+=lemmas;
+        }
+        total.setPages(totalPages);
+        total.setLemmas(totalLemmas);
         StatisticsResponse response = new StatisticsResponse();
         StatisticsData data = new StatisticsData();
         data.setTotal(total);
