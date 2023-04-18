@@ -1,30 +1,26 @@
 package searchengine.controllers;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.StatisticsService;
 import searchengine.services.indexService.IndexService;
+import searchengine.services.searchService.SearchResult;
+import searchengine.services.searchService.SearchService;
 
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class ApiController {
 
     private final StatisticsService statisticsService;
-
-    private IndexService indexService;
-
-    @Autowired
-    public void setIndexService(IndexService indexService) {
-        this.indexService = indexService;
-    }
-
-    public ApiController(StatisticsService statisticsService) {
-        this.statisticsService = statisticsService;
-    }
+    private final SearchService searchService;
+    private final IndexService indexService;
 
     @GetMapping("/statistics")
     public ResponseEntity<StatisticsResponse> statistics() {
@@ -44,5 +40,12 @@ public class ApiController {
     @GetMapping("/startSeparation")
     public ResponseEntity<String> startSeparation() {
         return indexService.startSeparation();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<SearchResult> search(@RequestParam("query") String query, @RequestParam(value = "offset", required = false) Integer offset,
+                                               @RequestParam(value = "limit", required = false) Integer limit,
+                                               @RequestParam(value = "site", required = false) String site) {
+        return searchService.search(query, offset, limit, site);
     }
 }
