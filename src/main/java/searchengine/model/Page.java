@@ -1,16 +1,16 @@
 package searchengine.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.hibernate.id.IncrementGenerator;
+import lombok.*;
 
 import java.util.List;
 import java.util.Objects;
 
 @Entity
 @Table(name = "page", schema = "search_engine", indexes = @jakarta.persistence.Index(columnList = "path"))
-@Data
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 public class Page {
 
@@ -30,6 +30,7 @@ public class Page {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
+    @ToString.Exclude
     private Site site;
 
     public Page(String path) {
@@ -55,5 +56,7 @@ public class Page {
     }
 
     @OneToMany(cascade = CascadeType.REFRESH, mappedBy = "lemma")
+    @ToString.Exclude
+//    @ToString.Exclude
     private List<Lemma> lemmaList;
 }

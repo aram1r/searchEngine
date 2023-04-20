@@ -1,11 +1,13 @@
 package searchengine.services.indexService;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.configuration.SitesList;
 import searchengine.model.Site;
 import searchengine.model.Status;
+import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
@@ -15,55 +17,60 @@ import searchengine.services.indexService.taskPools.ExecuteThread;
 import searchengine.services.indexService.taskPools.TaskPool;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 @Service
+@RequiredArgsConstructor
 public class IndexServiceImpl implements IndexService{
 
-    TaskPool taskPool;
-    SitesList sitesList;
-    SiteRepository siteRepository;
-    PageRepository pageRepository;
+    final TaskPool taskPool;
+    final SitesList sitesList;
+    final SiteRepository siteRepository;
+    final PageRepository pageRepository;
 
-    LemmaRepository lemmaRepository;
+    final LemmaRepository lemmaRepository;
 
-    ExecutorService executorService;
+    final ExecutorService executorService;
 
-    @Autowired
-    public void setExecutorService(ExecutorService executorService) {
-        this.executorService = executorService;
-    }
+    final IndexRepository indexRepository;
 
-    @Autowired
-    public void setLemmaRepository(LemmaRepository lemmaRepository) {
-        this.lemmaRepository = lemmaRepository;
-    }
-
-    @Autowired
-    public void setSiteRepository(SiteRepository siteRepository) {
-        this.siteRepository = siteRepository;
-    }
-
-    @Autowired
-    public void setUrlTaskPool(TaskPool taskPool) {
-        this.taskPool = taskPool;
-    }
-
-    @Autowired
-    public void setSitesList(SitesList sitesList) {
-        this.sitesList = sitesList;
-    }
-
-
-    @Autowired
-    public void setPageRepository(PageRepository pageRepository) {
-        this.pageRepository = pageRepository;
-    }
+//    @Autowired
+//    public void setExecutorService(ExecutorService executorService) {
+//        this.executorService = executorService;
+//    }
+//
+//    @Autowired
+//    public void setLemmaRepository(LemmaRepository lemmaRepository) {
+//        this.lemmaRepository = lemmaRepository;
+//    }
+//
+//    @Autowired
+//    public void setSiteRepository(SiteRepository siteRepository) {
+//        this.siteRepository = siteRepository;
+//    }
+//
+//    @Autowired
+//    public void setUrlTaskPool(TaskPool taskPool) {
+//        this.taskPool = taskPool;
+//    }
+//
+//    @Autowired
+//    public void setSitesList(SitesList sitesList) {
+//        this.sitesList = sitesList;
+//    }
+//
+//
+//    @Autowired
+//    public void setPageRepository(PageRepository pageRepository) {
+//        this.pageRepository = pageRepository;
+//    }
 
     //TODO придумать как начинать обработку лемм на страницах, как понять что закончен парсинг того или иного сайта
     //во времени.
     @Override
     public ResponseEntity<String> startIndexing() {
+        deleteAllIndexes();
         deleteAllLemmas();
         deleteAllPages();
         deleteAllSites();
@@ -104,15 +111,20 @@ public class IndexServiceImpl implements IndexService{
 
     @Override
     public ResponseEntity<String> startSeparation() {
-        Site site = siteRepository.findAll().iterator().next();
-        lemmaRepository.deleteAllBySite(site);
-        SeparationLemmaTaskImpl htmlSeparatorService = new SeparationLemmaTaskImpl(site, new TaskPool());
-        site.setStatus(Status.INDEXING);
-        siteRepository.save(site);
-        executorService.submit(new ExecuteThread(htmlSeparatorService));
+        List<Site> siteList = siteRepository.findAll();
+        indexRepository.deleteAll();
+        lemmaRepository.deleteAll();
+        for (Site site : siteList) {
+            SeparationLemmaTaskImpl htmlSeparatorService = new SeparationLemmaTaskImpl(site, new TaskPool());
+            site.setStatus(Status.INDEXING);
+            siteRepository.save(site);
+            executorService.submit(new ExecuteThread(htmlSeparatorService));
+        }
         return null;
     }
 
+
+    public void deleteAllIndexes() {indexRepository.deleteAll();}
     public void deleteAllSites() {
         siteRepository.deleteAll();
     }

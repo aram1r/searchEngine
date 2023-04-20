@@ -18,4 +18,6 @@ public interface LemmaRepository extends CrudRepository<Lemma, Integer> {
     void deleteAllBySite(Site site);
 
     Lemma findLemmaByLemma(String string);
+
+    Lemma findLemmaBySiteIdAndLemma(Integer siteId, String string);
 }

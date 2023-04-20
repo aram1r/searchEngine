@@ -100,11 +100,10 @@ public class SeparationLemmaTaskImpl extends Task {
                     wordsToProcess.removeAll(Arrays.asList("", null));
                     wordsToProcess.forEach(e-> {
                         if (e.length()>2) {
-                            String word = luceneMorphology.getNormalForms(e.replaceAll("[?!:;,.]?", "")).get(0);
-
+                            String word = luceneMorphology.getNormalForms(e.replaceAll("[?!:;,.]?", ""))
+                                    .get(0).toLowerCase();
                             if (word.length()>1 && ifWord(word)) {
                                 putOrIncreaseFrequency(word);
-
                             }
                         }
                     });

@@ -1,13 +1,17 @@
 package searchengine.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hibernate.Hibernate;
+
+import java.util.Objects;
 
 @Entity
 @Table(name = "lemma", schema = "search_engine")
 @NoArgsConstructor
-@Data
+@Getter
+@Setter
+@ToString
 public class Lemma {
 
     @Id
@@ -16,6 +20,7 @@ public class Lemma {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
+    @ToString.Exclude
     private Site site;
 
     @Column(nullable = false)
@@ -28,5 +33,18 @@ public class Lemma {
         this.lemma = lemma;
         this.frequency = frequency;
         this.site = site;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+        Lemma lemma = (Lemma) o;
+        return id != null && Objects.equals(id, lemma.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

@@ -8,10 +8,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.model.SearchQuery;
 import searchengine.services.StatisticsService;
 import searchengine.services.indexService.IndexService;
 import searchengine.services.searchService.SearchResult;
 import searchengine.services.searchService.SearchService;
+
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api")
