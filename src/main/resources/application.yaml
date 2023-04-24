@@ -16,12 +16,12 @@ indexing-settings:
 #      name: Лента.ру
     - url: https://www.skillbox.ru
       name: Skillbox
-    - url: https://www.playback.ru
-      name: PlayBack.Ru
+#    - url: https://www.playback.ru
+#      name: PlayBack.Ru
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
+    url: jdbc:postgresql://localhost:5432/postgres?allowPublicKeyRetrieval=true&useSSL=false
     username: postgres
     password: root
 #    url: jdbc:mysql://localhost:3306/search_engine?useSSL=false&serverTimezone=UTC
@@ -31,9 +31,11 @@ spring:
 #    show-sql: true
     properties:
       hibernate:
+        enable_lazy_load_no_trans: true
 #        dialect: org.hibernate.dialect.MySQL8Dialect
         dialect: org.hibernate.dialect.PostgreSQLDialect
         globally_quoted_identifiers: true
+        connection.autocommit: false
         show-sql: true
         format_sql: true
         jdbc:
@@ -45,9 +47,18 @@ logging:
   level:
     com.graduation.work.searchwebengine:
       service: WARN
-#    org:
-#      hibernate:
-#        type: trace
+    org:
+      springframework:
+        jdbc:
+          core:
+            org.springframework.jdbc.core.JdbcTemplate: debug
+            org.springframework.jdbc.core.StatementCreatorUtils: TRACE
+      hibernate:
+        sql: debug
+        type:
+          descriptor:
+            sql:
+              BasicBinder: trace
   file:
     name: ${java.io.tmpdir}/app.log
   pattern:

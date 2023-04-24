@@ -2,21 +2,19 @@ package searchengine.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.util.List;
 import java.util.Objects;
 
 @Entity
 @Table(name = "page", schema = "search_engine", indexes = @jakarta.persistence.Index(columnList = "path"))
-@Getter
-@Setter
-@ToString
+@Data
 @NoArgsConstructor
+@AllArgsConstructor
 public class Page {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    public Integer id;
 
     @Column
     private String path;
@@ -24,8 +22,9 @@ public class Page {
     @Column(nullable = false)
     private Integer responseCode;
 
-    @Lob
-    @Column(length = 100000)
+//    @Lob
+
+    @Column(columnDefinition = "text")
     private String content;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -55,8 +54,14 @@ public class Page {
         return Objects.hash(path);
     }
 
-    @OneToMany(cascade = CascadeType.REFRESH, mappedBy = "lemma")
+    @OneToMany(cascade = CascadeType.MERGE, mappedBy = "lemma")
     @ToString.Exclude
-//    @ToString.Exclude
     private List<Lemma> lemmaList;
+
+    @Override
+    public String toString() {
+        return "Page{" +
+                "id=" + id +
+                '}';
+    }
 }

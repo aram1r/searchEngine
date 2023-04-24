@@ -4,22 +4,24 @@ package searchengine.model;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.Hibernate;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 
 @Entity
 @Table(name = "index", schema = "search_engine")
 @NoArgsConstructor
-@Getter
-@Setter
-@ToString
+@AllArgsConstructor
+@Data
+@Transactional
 public class Index {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @OneToOne(fetch = FetchType.EAGER)
+
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "page_id", nullable = false)
     @ToString.Exclude
     private Page page;
@@ -50,4 +52,5 @@ public class Index {
     public int hashCode() {
         return getClass().hashCode();
     }
+
 }

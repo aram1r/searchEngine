@@ -12,5 +12,8 @@ import java.util.List;
 @Transactional
 public interface PageRepository extends CrudRepository<Page, Integer> {
 
-    public List<Page> findAllBySite(Site site);
+    List<Page> findAllBySite(Site site);
+
+    List<Page> findAllByContentIsContaining(String word);
+
 }
