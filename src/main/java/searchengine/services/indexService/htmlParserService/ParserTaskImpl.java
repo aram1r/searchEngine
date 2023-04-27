@@ -79,7 +79,8 @@ public class ParserTaskImpl extends Task {
     }
 
     private void separateLemmas() {
-        SeparationLemmaTaskImpl htmlSeparatorService = new SeparationLemmaTaskImpl(getSite(), new TaskPool());
+        SeparationLemmaTaskImpl htmlSeparatorService = new SeparationLemmaTaskImpl(getSiteRepository()
+                .findAllByUrl(getSite().getUrl()), new TaskPool());
         htmlSeparatorService.fork();
         getExecutorService().submit(new ExecuteThread(htmlSeparatorService));
     }
@@ -122,10 +123,10 @@ public class ParserTaskImpl extends Task {
 
     private void processPage (String url) {
         try {
+            getPage().setSite(getSite());
             Thread.sleep(ThreadLocalRandom.current().nextLong(501, 4000));
             Connection.Response response = Jsoup.connect(getSite().getUrl()+url).userAgent(getAppProps().getUserAgent())
                     .referrer(getAppProps().getReferrer()).execute();
-            getPage().setSite(getSite());
             getPage().setResponseCode(response.statusCode());
             if (getPage().getResponseCode()==200) {
                 getPage().setContent(response.parse().toString());

@@ -10,12 +10,11 @@ import lombok.*;
 public class Lemma {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
-    @ToString.Exclude
     private Site site;
 
     @Column(nullable = false)

@@ -15,6 +15,8 @@ import java.util.List;
 @Transactional
 public interface IndexRepository extends CrudRepository<Index, Integer> {
 
+
+
     @Transactional(readOnly = true)
     @Query(value = "SELECT search_engine.index.* \n" +
             "FROM search_engine.lemma INNER JOIN search_engine.index on search_engine.lemma.id = search_engine.index.lemma_id\n" +

@@ -6,10 +6,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
 import searchengine.model.*;
 import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
+import searchengine.repositories.PageRepository;
 import searchengine.services.indexService.taskPools.Task;
 import searchengine.services.indexService.taskPools.TaskPool;
 import java.util.*;
@@ -126,6 +128,7 @@ public class SeparationLemmaTaskImpl extends Task {
         if (!indexes.get(getPage()).containsKey(word)) {
             indexes.get(getPage()).put(word, 1);
         } else {
+            indexes.get(getPage()).remove(word);
             indexes.get(getPage()).put(word, indexes.get(getPage()).get(word)+1);
         }
     }
@@ -163,30 +166,56 @@ public class SeparationLemmaTaskImpl extends Task {
                     v.join();
                 }
             });
-            lemmaRepository.saveAll(result.values());
+//            lemmaRepository.saveAll(result.values());
+            saveLemmas();
             saveIndexes();
             getSite().setStatus(Status.INDEXED);
             getSiteRepository().save(getSite());
+        } catch (JpaSystemException ignored) {
+
         } catch (Exception e) {
             getLogger().warn(e.getMessage());
-            System.out.println(e.getMessage());
+            System.out.println("Exception during collecting lemma separation " + e.getMessage() + " " + e.getClass());
         }
     }
 
+    private void saveLemmas() {
+        for (Lemma lemma : result.values()) {
+            if (lemma!=null) {
+                lemma.setId(null);
+                lemmaRepository.save(lemma);
+            }
+        }
+        System.out.println("Lemmas saved");
+    }
+
     private void saveIndexes() {
-        HashMap<String, Lemma> lemmas = getLemmasMap();
-        List<Index> indexList = new ArrayList<>();
-        indexes.forEach((k, v) -> {
-            v.forEach((kk ,vv) -> {
-                indexList.add(new Index(k, lemmas.get(kk), (float) vv));
+        List<Index> indexList = Collections.synchronizedList(new ArrayList<>());
+        try {
+            HashMap<String, Lemma> lemmas = getLemmasMap();
+            indexes.forEach((k, v) -> {
+                if (v!=null && k!=null) {
+                    v.forEach((kk ,vv) -> {
+                        if (lemmas.get(kk)!=null) {
+                            indexList.add(new Index(k, lemmas.get(kk), (float) vv));
+                        }
+                    });
+                }
             });
-        });
-        indexRepository.saveAll(indexList);
+            indexRepository.saveAll(indexList);
+        } catch (Exception e) {
+            System.out.println("Exception during index saving " +  e.getMessage() + " " + e.getClass());
+        }
     }
 
     private HashMap<String, Lemma> getLemmasMap() {
         HashMap<String, Lemma> lemmas = new HashMap<>();
-        List<Lemma> lemmaList= lemmaRepository.findAllBySite(getSite());
+        List<Lemma> lemmaList = new ArrayList<>();
+        try {
+            lemmaList = lemmaRepository.findAllBySite(getSite());
+        } catch (Exception e) {
+            System.out.println(e.getMessage() + " Exception during loading lemma entities from db");
+        }
         lemmaList.forEach(e -> {
             lemmas.put(e.getLemma(), e);
         });

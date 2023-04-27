@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.Lemma;
 import searchengine.model.Site;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
@@ -13,7 +14,7 @@ import java.util.List;
 @Transactional
 public interface LemmaRepository extends CrudRepository<Lemma, Integer> {
 
-    public List<Lemma> findAllBySite(Site site);
+    List<Lemma> findAllBySite(Site site);
 
     void deleteAllBySite(Site site);
 

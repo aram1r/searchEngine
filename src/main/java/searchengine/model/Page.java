@@ -9,11 +9,10 @@ import java.util.Objects;
 @Table(name = "page", schema = "search_engine", indexes = @jakarta.persistence.Index(columnList = "path"))
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class Page {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     public Integer id;
 
     @Column
@@ -29,7 +28,6 @@ public class Page {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
-    @ToString.Exclude
     private Site site;
 
     public Page(String path) {
@@ -54,14 +52,7 @@ public class Page {
         return Objects.hash(path);
     }
 
-    @OneToMany(cascade = CascadeType.MERGE, mappedBy = "lemma")
+    @OneToMany(cascade = CascadeType.REFRESH, mappedBy = "lemma")
     @ToString.Exclude
     private List<Lemma> lemmaList;
-
-    @Override
-    public String toString() {
-        return "Page{" +
-                "id=" + id +
-                '}';
-    }
 }
