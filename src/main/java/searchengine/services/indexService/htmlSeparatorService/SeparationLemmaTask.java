@@ -6,4 +6,6 @@ public interface SeparationLemmaTask {
 
     void processWebpagesFromDb() throws IOException;
 
+    boolean ifWord(String word);
+
 }

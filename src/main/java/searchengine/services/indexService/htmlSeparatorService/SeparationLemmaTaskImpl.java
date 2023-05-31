@@ -1,9 +1,6 @@
 package searchengine.services.indexService.htmlSeparatorService;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.jpa.JpaSystemException;
@@ -11,9 +8,10 @@ import org.springframework.stereotype.Component;
 import searchengine.model.*;
 import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
-import searchengine.repositories.PageRepository;
 import searchengine.services.indexService.taskPools.Task;
 import searchengine.services.indexService.taskPools.TaskPool;
+import searchengine.services.wordProcessorService.WordProcessorService;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,6 +29,8 @@ public class SeparationLemmaTaskImpl extends Task {
 
     private static LuceneMorphology luceneMorphology;
 
+    private static WordProcessorService wordProcessorService;
+
     private boolean parent;
 
     private ConcurrentHashMap<String, Lemma> result;
@@ -40,6 +40,11 @@ public class SeparationLemmaTaskImpl extends Task {
     private static IndexRepository indexRepository;
 
     @Autowired
+    public void setWordProcessorService(WordProcessorService wordProcessorService) {
+        SeparationLemmaTaskImpl.wordProcessorService = wordProcessorService;
+    }
+
+    @Autowired
     public void setIndexRepository(IndexRepository indexRepository) {
         SeparationLemmaTaskImpl.indexRepository = indexRepository;
     }
@@ -47,10 +52,6 @@ public class SeparationLemmaTaskImpl extends Task {
     @Autowired
     public void setLemmaRepository(LemmaRepository lemmaRepository) {
         SeparationLemmaTaskImpl.lemmaRepository = lemmaRepository;
-    }
-    @Autowired
-    public void setLuceneMorphology(LuceneMorphology luceneMorphology) {
-        SeparationLemmaTaskImpl.luceneMorphology = luceneMorphology;
     }
 
     public SeparationLemmaTaskImpl(Site site, TaskPool taskPool) {
@@ -71,14 +72,6 @@ public class SeparationLemmaTaskImpl extends Task {
         this.indexes = indexes;
     }
 
-    private boolean ifWord(String word) {
-        return !luceneMorphology.getMorphInfo(word).get(0).contains("СОЮЗ") &&
-                !luceneMorphology.getMorphInfo(word).get(0).contains("ПРЕДЛ") &&
-                !luceneMorphology.getMorphInfo(word).get(0).contains("МЕЖД") &&
-                !luceneMorphology.getMorphInfo(word).get(0).contains("ЧАСТ") &&
-                !luceneMorphology.getMorphInfo(word).get(0).contains("МС");
-    }
-
     @Override
     protected void compute() {
         if (parent) {
@@ -95,8 +88,9 @@ public class SeparationLemmaTaskImpl extends Task {
                 try {
                     List<String> wordsToProcess = new ArrayList<>();
                     words.forEach(e -> {
-                        if (!isLink(e)) {
-                            wordsToProcess.add(e.replaceAll("[A-Za-z0-9=+/;:.'@&%,\"<>!|·\\[\\]\\-_$(){}#©\s]+", ""));
+                        if (!wordProcessorService.isLink(e)) {
+                            wordsToProcess.add(e.replaceAll("[A-Za-z0-9=+/;:.'@&%," +
+                                    "\"<>!|·\\[\\]\\-_$(){}#©\s]+", ""));
                         }
                     });
                     wordsToProcess.removeAll(Arrays.asList("", null));
@@ -104,7 +98,7 @@ public class SeparationLemmaTaskImpl extends Task {
                         if (e.length()>2) {
                             String word = luceneMorphology.getNormalForms(e.replaceAll("[?!:;,.]?", ""))
                                     .get(0).toLowerCase();
-                            if (word.length()>1 && ifWord(word)) {
+                            if (word.length()>1 && wordProcessorService.ifWord(word)) {
                                 putOrIncreaseFrequency(word);
                             }
                         }
@@ -137,10 +131,6 @@ public class SeparationLemmaTaskImpl extends Task {
         if(indexes.isEmpty() || !indexes.contains(getPage())) {
             indexes.put(getPage(), new HashMap<>());
         }
-    }
-
-    private boolean isLink(String word) {
-        return word.matches("https?://(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_+.~#?&/=]*)");
     }
 
     private void initializeSeparation() {
@@ -216,9 +206,7 @@ public class SeparationLemmaTaskImpl extends Task {
         } catch (Exception e) {
             System.out.println(e.getMessage() + " Exception during loading lemma entities from db");
         }
-        lemmaList.forEach(e -> {
-            lemmas.put(e.getLemma(), e);
-        });
+        lemmaList.forEach(e -> lemmas.put(e.getLemma(), e));
         return lemmas;
     }
 }

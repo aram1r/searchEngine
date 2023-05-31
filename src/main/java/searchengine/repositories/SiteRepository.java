@@ -23,4 +23,6 @@ public interface SiteRepository extends CrudRepository<Site, Integer> {
     List<Site> findAll();
 
     Site findAllByUrl(String name);
+
+
 }
