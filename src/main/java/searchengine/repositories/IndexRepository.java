@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import searchengine.model.Index;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
+import searchengine.model.Site;
 
 import java.util.List;
 
@@ -27,4 +28,6 @@ public interface IndexRepository extends CrudRepository<Index, Integer> {
     List<Index> findAllByLemmaAndPage(Lemma lemma, Page page);
 
     List<Index> findAllByLemma(Lemma lemma);
+
+    List<Index> findAllByLemma_SiteAndLemma(Site site, Lemma lemma);
 }

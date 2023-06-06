@@ -13,6 +13,7 @@ import searchengine.services.wordProcessorService.WordProcessorService;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -36,44 +37,69 @@ public class SearchService {
                 searchQuery.getSites().add(e);
             });
         }
-        getPages(searchQuery);
+        List<Page> resultPages = getPages(searchQuery);
+
+        //TODO создать метод с списком объектов которые должны уйти в итоге на фронт
+        getSnippets(resultPages);
         return null;
+    }
+
+    private void getSnippets(List<Page> resultPages) {
     }
 
     public List<Page> getPages(SearchQuery searchQuery) {
         List<Page> result = new ArrayList<>();
+        List<Index> indexResult = new ArrayList<>();
         List<String> words = new ArrayList<>(Arrays.asList(searchQuery.getQuery().toLowerCase().split("\\s+")));
         removeNotWords(words);
-
         for (Site site : searchQuery.getSites()) {
-            Integer pagesOnSite = pageRepository.countAllBySite(site);
-            for (String word : words) {
-                //TODO оптимизировать
-                Lemma lemma = lemmaRepository.findLemmaBySiteIdAndLemma(site.getId(), luceneMorphology.getNormalForms(word).get(0));
+            //Получаем леммы из бд
+            List<Lemma> lemmaList = getLemmasFromDB(words, site);
 
-                if (lemma!=null) {
-                    //TODO переписать запрос чтобы находил страницы содержащие необходимое слово (возможно необходимо заходить через индексрепозитори)
-                    List<Page> pageList = pageRepository.findAllBySiteAndContentLike(site, lemma.getLemma());
-                    if (pageList.size()!=0 && pageList.size()<pagesOnSite/10) {
-                        //                    List<Index> tempIndex = indexRepository.findAllByLemmaAndPage(lemma, page);
-
-//                    indexes.addAll(indexRepository.findAllByLemmaIdAndSiteId
-//                            (site.getId(), lemma.getId()));
-                        if (result.isEmpty()) {
-                            result.addAll(pageList);
-                        } else {
-                            result.forEach(e -> {
-                                if (!pageList.contains(e)) {
-                                    result.remove(e);
-                                }
-                            });
+            if (lemmaList.size()!=0) {
+                //Сортировка лемм по частоте
+                sortLemmasByFrequency(lemmaList);
+                //Получаем количество страниц на сайте, для сравнения на каком количестве страниц встречаются леммы
+                // относительно всех страниц
+                Integer pagesOnSite = pageRepository.countAllBySite(site);
+                for (Lemma lemma : lemmaList) {
+                    if (lemma!=null) {
+                        List<Index> indexList = indexRepository.findAllByLemma_SiteAndLemma(site, lemma);
+                        if (indexList.size()!=0 && indexList.size()<pagesOnSite/10) {
+                            if (indexResult.isEmpty()) {
+                                indexResult.addAll(indexList);
+                            } else {
+                                indexResult.forEach(e -> {
+                                    if (!indexList.contains(e)) {
+                                        indexResult.remove(e);
+                                    }
+                                });
+                            }
                         }
                     }
                 }
-
             }
         }
+        for (Index index : indexResult) {
+            result.add(index.getPage());
+        }
+        //TODO отсортировать старницы по релевантности
         return result;
+    }
+
+    private List<Lemma> getLemmasFromDB(List<String> words, Site site) {
+        ArrayList<Lemma> lemmata = new ArrayList<>();
+        for (String word : words) {
+            Lemma lemma = lemmaRepository.findLemmaBySiteIdAndLemma(site.getId(), luceneMorphology.getNormalForms(word).get(0));
+            if (lemma!=null) {
+                lemmata.add(lemma);
+            }
+        }
+        return lemmata;
+    }
+
+    private void sortLemmasByFrequency(List<Lemma> lemmas) {
+        Collections.sort(lemmas);
     }
 
     private void removeNotWords(List<String> words) {

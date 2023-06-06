@@ -7,7 +7,7 @@ import lombok.*;
 @Table(name = "lemma", schema = "search_engine")
 @NoArgsConstructor
 @Data
-public class Lemma {
+public class Lemma implements Comparable<Lemma> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
@@ -27,5 +27,10 @@ public class Lemma {
         this.lemma = lemma;
         this.frequency = frequency;
         this.site = site;
+    }
+
+    @Override
+    public int compareTo(Lemma o) {
+        return this.frequency - o.getFrequency();
     }
 }
