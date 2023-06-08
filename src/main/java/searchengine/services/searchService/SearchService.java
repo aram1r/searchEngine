@@ -2,6 +2,8 @@ package searchengine.services.searchService;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
+import org.jsoup.nodes.Document;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.model.*;
@@ -11,10 +13,7 @@ import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
 import searchengine.services.wordProcessorService.WordProcessorService;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +28,8 @@ public class SearchService {
     final LuceneMorphology luceneMorphology;
     public ResponseEntity<SearchResult> search(String query, Integer offset, Integer limit, String site) {
         SearchQuery searchQuery = new SearchQuery(query, offset, limit, new ArrayList<>());
+        SearchResult searchResult = new SearchResult();
+
         if (site != null) {
             Site siteFromDB = siteRepository.findAllByUrl(site);
             searchQuery.getSites().add(siteFromDB);
@@ -37,21 +38,49 @@ public class SearchService {
                 searchQuery.getSites().add(e);
             });
         }
-        List<Page> resultPages = getPages(searchQuery);
 
-        //TODO создать метод с списком объектов которые должны уйти в итоге на фронт
-        getSnippets(resultPages);
-        return null;
+
+        searchResult = getSearchResult(searchQuery);
+
+        return new ResponseEntity<>(searchResult, HttpStatus.OK);
     }
 
-    private void getSnippets(List<Page> resultPages) {
+    private SearchResult getSearchResult(SearchQuery searchQuery) {
+        SearchResult searchResult = new SearchResult();
+        if (searchQuery.getQuery().isEmpty()) {
+            searchResult.setResult(false);
+            searchResult.setError("Задан пустой поисковый запрос");
+            return searchResult;
+        } else {
+            List<Page> resultPages = getPages(searchQuery);
+            if (resultPages.size()!=0) {
+                //TODO написать метод поиска сниппетов
+                HashMap<Page, String> snippets = getSnippets(resultPages, searchQuery);
+                assert snippets != null;
+                searchResult.setResult(true);
+                searchResult.setError(null);
+                snippets.forEach((k, v) -> {
+                    searchResult.getDataList().add(new Data(k.getSite(), k.getSite().getName(), k.getPath(),
+                            new Document(k.getContent()).title(), v, 0d));
+                });
+            } else {
+                searchResult.setResult(false);
+                searchResult.setError("Не найдено страниц");
+            }
+
+            return searchResult;
+        }
+    }
+
+    private HashMap<Page, String> getSnippets(List<Page> resultPages, SearchQuery searchQuery) {
+        List<String> words = extractLemmas(searchQuery);
+        return null;
     }
 
     public List<Page> getPages(SearchQuery searchQuery) {
         List<Page> result = new ArrayList<>();
         List<Index> indexResult = new ArrayList<>();
-        List<String> words = new ArrayList<>(Arrays.asList(searchQuery.getQuery().toLowerCase().split("\\s+")));
-        removeNotWords(words);
+        List<String> words = extractLemmas(searchQuery);
         for (Site site : searchQuery.getSites()) {
             //Получаем леммы из бд
             List<Lemma> lemmaList = getLemmasFromDB(words, site);
@@ -66,15 +95,7 @@ public class SearchService {
                     if (lemma!=null) {
                         List<Index> indexList = indexRepository.findAllByLemma_SiteAndLemma(site, lemma);
                         if (indexList.size()!=0 && indexList.size()<pagesOnSite/10) {
-                            if (indexResult.isEmpty()) {
-                                indexResult.addAll(indexList);
-                            } else {
-                                indexResult.forEach(e -> {
-                                    if (!indexList.contains(e)) {
-                                        indexResult.remove(e);
-                                    }
-                                });
-                            }
+                            removeMismatches(indexResult, indexList);
                         }
                     }
                 }
@@ -85,6 +106,24 @@ public class SearchService {
         }
         //TODO отсортировать старницы по релевантности
         return result;
+    }
+
+    private List<String> extractLemmas(SearchQuery searchQuery) {
+        List<String> words = new ArrayList<>(Arrays.asList(searchQuery.getQuery().toLowerCase().split("\\s+")));
+        removeNotWords(words);
+        return words;
+    }
+
+    private void removeMismatches(List<Index> indexResult, List<Index> indexList) {
+        if (indexResult.isEmpty()) {
+            indexResult.addAll(indexList);
+        } else {
+            indexResult.forEach(e -> {
+                if (!indexList.contains(e)) {
+                    indexResult.remove(e);
+                }
+            });
+        }
     }
 
     private List<Lemma> getLemmasFromDB(List<String> words, Site site) {
