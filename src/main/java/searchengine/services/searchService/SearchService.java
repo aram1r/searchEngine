@@ -73,7 +73,31 @@ public class SearchService {
     }
 
     private HashMap<Page, String> getSnippets(List<Page> resultPages, SearchQuery searchQuery) {
+        HashMap<Page, String> snippets = new HashMap<>();
         List<String> words = extractLemmas(searchQuery);
+        for (Page page : resultPages) {
+            String content = page.getContent();
+            ArrayList<String> wordsFromPage = new ArrayList<>(Arrays.asList(content.split("\\s+")));
+            //TODO вылетает при попытке нормализовать слова и символы англоязычные
+            wordsFromPage.forEach(luceneMorphology::getNormalForms);
+
+            List<String> stringsForSnippets = getStringForSnippets(wordsFromPage, words, content);
+//            int firstWord = wordsFromPage.indexOf(words.get(0));
+//            int lastWord = wordsFromPage.indexOf(words.get(words.size()-1));
+//            Integer firstWordPosition=0;
+//            Integer lastWordPosition = 0;
+//            for (int i = 0; i<lastWord; i++) {
+//                if (i<=firstWord) {
+//                    firstWordPosition = content.indexOf(" ", firstWordPosition);
+//                }
+//                lastWordPosition = content.indexOf(" ", lastWordPosition);
+//            }
+            //TODO дописать метод проверяющий строки полученные для сниппетов на наличии слов из поискового запроса в данной строке
+//            boolean stringContainsSnippet = false;
+//            for (String string : stringsForSnippets) {
+//                if (string.contains())
+//            }
+        }
         return null;
     }
 
@@ -105,6 +129,35 @@ public class SearchService {
             result.add(index.getPage());
         }
         //TODO отсортировать старницы по релевантности
+        return result;
+    }
+
+
+    // дописать метод чтобы возвращал список строк в которых потом искать совпадает ли они с поисковым запросом
+    //(т.к. метод ищет подстроку по начальному слову и конечному
+    public List<String> getStringForSnippets(ArrayList<String> wordsFromPage, List<String> words, String content) {
+        List<String> result = new ArrayList<>();
+
+        int firstWordPosition;
+        int lastWordPosition;
+        do {
+            int firstWord = wordsFromPage.indexOf(words.get(0));
+            int lastWord = wordsFromPage.indexOf(words.get(words.size() - 1));
+            firstWordPosition = 0;
+            lastWordPosition = 0;
+            for (int i = 0; i < lastWord; i++) {
+                if (i <= firstWord) {
+                    firstWordPosition = content.indexOf(" ", firstWordPosition);
+                }
+                lastWordPosition = content.indexOf(" ", lastWordPosition);
+                if (i == lastWord - 1) {
+                    result.add(content.substring(firstWordPosition, lastWordPosition));
+                    wordsFromPage.set(firstWord, null);
+                    wordsFromPage.set(lastWord, null);
+                }
+            }
+        } while (firstWordPosition >= 0 && lastWordPosition >= 0);
+
         return result;
     }
 
