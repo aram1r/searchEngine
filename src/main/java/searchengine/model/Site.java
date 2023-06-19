@@ -1,5 +1,7 @@
 package searchengine.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
@@ -37,6 +39,7 @@ public class Site {
     private String name;
 
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "site", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Page> pageList;
 
     public Site(Status status, LocalDateTime statusTime, String lastError, String url, String name) {

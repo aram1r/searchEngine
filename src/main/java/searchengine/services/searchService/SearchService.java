@@ -2,7 +2,10 @@ package searchengine.services.searchService;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
+import org.apache.lucene.morphology.WrongCharaterException;
+import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.safety.Safelist;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -52,22 +55,43 @@ public class SearchService {
             searchResult.setError("Задан пустой поисковый запрос");
             return searchResult;
         } else {
-            List<Page> resultPages = getPages(searchQuery);
-            if (resultPages.size()!=0) {
-                //TODO написать метод поиска сниппетов
-                HashMap<Page, String> snippets = getSnippets(resultPages, searchQuery);
-                assert snippets != null;
-                searchResult.setResult(true);
-                searchResult.setError(null);
-                snippets.forEach((k, v) -> {
-                    searchResult.getDataList().add(new Data(k.getSite(), k.getSite().getName(), k.getPath(),
-                            new Document(k.getContent()).title(), v, 0d));
-                });
-            } else {
-                searchResult.setResult(false);
-                searchResult.setError("Не найдено страниц");
-            }
+//            List<Page> resultPages = getPages(searchQuery);
+//            if (resultPages.size()!=0) {
+//                //TODO написать метод поиска сниппетов
+//                HashMap<Page, String> snippets = getSnippets(resultPages, searchQuery);
+//                assert snippets != null;
+//                searchResult.setResult(true);
+//                searchResult.setError(null);
+//                snippets.forEach((k, v) -> {
+//                    searchResult.getDataList().add(new Data(k.getSite(), k.getSite().getName(), k.getPath(),
+//                            new Document(k.getContent()).title(), v, 0d));
+//                });
+//            } else {
+//                searchResult.setResult(false);
+//                searchResult.setError("Не найдено страниц");
+//            }
 
+
+            //Тестовая заглушка
+            searchResult.setResult(true);
+            searchResult.setError(null);
+            searchResult.setCount(10);
+            ArrayList<Data> dataArrayList = new ArrayList<>();
+            Site site = siteRepository.findAll().get(0);
+            for (int i = 0; i<15; i++) {
+                Data data = new Data();
+                data.setRelevance(i+1.0);
+                data.setSite(site);
+                data.setTitle("Заглушка");
+                data.setSnippet("Считаем количество строк для сниппета может одна может две может три может четыре," +
+                        "может пять, может шесть, может семь, может восемь, может девять, может десять, может одиннадцать" +
+                        ", может двенадцать, может тринадцать, может четырнадцать, может пятнадцать, может шестандцать, " +
+                        "может семнадцать, может восемьнадцать, может девятнадцать, может двадцать");
+                data.setSiteName(site.getName());
+                data.setUrl("www.заглушка.com");
+                dataArrayList.add(data);
+            }
+            searchResult.setData(dataArrayList);
             return searchResult;
         }
     }
@@ -76,10 +100,18 @@ public class SearchService {
         HashMap<Page, String> snippets = new HashMap<>();
         List<String> words = extractLemmas(searchQuery);
         for (Page page : resultPages) {
-            String content = page.getContent();
+            String content = Jsoup.clean(page.getContent(), Safelist.simpleText()).toLowerCase();
             ArrayList<String> wordsFromPage = new ArrayList<>(Arrays.asList(content.split("\\s+")));
             //TODO вылетает при попытке нормализовать слова и символы англоязычные
-            wordsFromPage.forEach(luceneMorphology::getNormalForms);
+            wordsFromPage.forEach(e -> {
+                try {
+                    if (wordProcessorService.ifWord(e)) {
+                        luceneMorphology.getNormalForms(e).get(0);
+                    }
+                } catch (WrongCharaterException ignored) {
+
+                }
+            });
 
             List<String> stringsForSnippets = getStringForSnippets(wordsFromPage, words, content);
 //            int firstWord = wordsFromPage.indexOf(words.get(0));
@@ -140,8 +172,11 @@ public class SearchService {
 
         int firstWordPosition;
         int lastWordPosition;
+        //TODO метод не работает зацикливается стартовый индекс не двигается
         do {
+            //Получаем первую позицию слова в тексте со страницы
             int firstWord = wordsFromPage.indexOf(words.get(0));
+            //Получаем первую позицию последнего слова в тексте со страницы
             int lastWord = wordsFromPage.indexOf(words.get(words.size() - 1));
             firstWordPosition = 0;
             lastWordPosition = 0;

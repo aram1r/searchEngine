@@ -13,9 +13,9 @@ public class SearchResult {
     private boolean result;
     private String error;
     private Integer count;
-    private List<Data> dataList;
+    private List<Data> data;
 
     public SearchResult() {
-        dataList = new ArrayList<>();
+        data = new ArrayList<>();
     }
 }
