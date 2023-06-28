@@ -50,62 +50,69 @@ public class SearchService {
 
     private SearchResult getSearchResult(SearchQuery searchQuery) {
         SearchResult searchResult = new SearchResult();
+
         if (searchQuery.getQuery().isEmpty()) {
             searchResult.setResult(false);
             searchResult.setError("Задан пустой поисковый запрос");
             return searchResult;
         } else {
-//            List<Page> resultPages = getPages(searchQuery);
-//            if (resultPages.size()!=0) {
-//                //TODO написать метод поиска сниппетов
-//                HashMap<Page, String> snippets = getSnippets(resultPages, searchQuery);
-//                assert snippets != null;
-//                searchResult.setResult(true);
-//                searchResult.setError(null);
-//                snippets.forEach((k, v) -> {
-//                    searchResult.getDataList().add(new Data(k.getSite(), k.getSite().getName(), k.getPath(),
-//                            new Document(k.getContent()).title(), v, 0d));
-//                });
-//            } else {
-//                searchResult.setResult(false);
-//                searchResult.setError("Не найдено страниц");
-//            }
-
-
-            //Тестовая заглушка
-            searchResult.setResult(true);
-            searchResult.setError(null);
-            searchResult.setCount(10);
-            ArrayList<Data> dataArrayList = new ArrayList<>();
-            Site site = siteRepository.findAll().get(0);
-            for (int i = 0; i<15; i++) {
-                Data data = new Data();
-                data.setRelevance(i+1.0);
-                data.setSite(site);
-                data.setTitle("Заглушка");
-                data.setSnippet("Считаем количество строк для сниппета может одна может две может три может четыре," +
-                        "может пять, может шесть, может семь, может восемь, может девять, может десять, может одиннадцать" +
-                        ", может двенадцать, может тринадцать, может четырнадцать, может пятнадцать, может шестандцать, " +
-                        "может семнадцать, может восемьнадцать, может девятнадцать, может двадцать");
-                data.setSiteName(site.getName());
-                data.setUrl("www.заглушка.com");
-                dataArrayList.add(data);
+            List<Page> resultPages = getPages(searchQuery);
+            if (resultPages.size()!=0) {
+                //TODO написать метод поиска сниппетов
+                HashMap<Page, String> snippets = getSnippets(resultPages, searchQuery);
+                assert snippets != null;
+                searchResult.setResult(true);
+                searchResult.setError(null);
+                snippets.forEach((k, v) -> {
+                    searchResult.getData().add(new Data(k.getSite(), k.getSite().getName(), k.getPath(),
+                            new Document(k.getContent()).title(), v, 0d));
+                });
+            } else {
+                searchResult.setResult(false);
+                searchResult.setError("Не найдено страниц");
             }
-            searchResult.setData(dataArrayList);
+
+
+//            //Тестовая заглушка
+//            searchResult.setResult(true);
+//            searchResult.setError(null);
+//            searchResult.setCount(10);
+//            ArrayList<Data> dataArrayList = new ArrayList<>();
+//            Site site = siteRepository.findAll().get(0);
+//            for (int i = 0; i<15; i++) {
+//                Data data = new Data();
+//                data.setRelevance(i+1.0);
+//                data.setSite(site);
+//                data.setTitle("Заглушка");
+//                data.setSnippet("Считаем количество строк для сниппета может одна может две может три может четыре," +
+//                        "может пять, может шесть, может семь, может восемь, может девять, может десять, может одиннадцать" +
+//                        ", <b>может двенадцать, может тринадцать, может четырнадцать, может пятнадцать, может шестандцать<b>, " +
+//                        "может семнадцать, может восемьнадцать, может девятнадцать, может двадцать");
+//                data.setSiteName(site.getName());
+//                data.setUrl("www.заглушка.com");
+//                dataArrayList.add(data);
+//            }
+//            searchResult.setData(dataArrayList);
+
             return searchResult;
         }
     }
 
     private HashMap<Page, String> getSnippets(List<Page> resultPages, SearchQuery searchQuery) {
         HashMap<Page, String> snippets = new HashMap<>();
+
+        //Получаем слова из поискового запроса чтобы их потом нормализовать и по ним искать сниппет
         List<String> words = extractLemmas(searchQuery);
+
         for (Page page : resultPages) {
+            //Получаем контент с страницы очищаем от тэгов и понижаем
             String content = Jsoup.clean(page.getContent(), Safelist.simpleText()).toLowerCase();
+            //Получаем массив слов из контента
             ArrayList<String> wordsFromPage = new ArrayList<>(Arrays.asList(content.split("\\s+")));
-            //TODO вылетает при попытке нормализовать слова и символы англоязычные
+            //TODO вылетает при попытке проверить слово ли это (вылетает на цифрах и английских буквах)
             wordsFromPage.forEach(e -> {
                 try {
-                    if (wordProcessorService.ifWord(e)) {
+                    if (wordProcessorService.isWord(e)) {
                         luceneMorphology.getNormalForms(e).get(0);
                     }
                 } catch (WrongCharaterException ignored) {
@@ -230,6 +237,6 @@ public class SearchService {
     }
 
     private void removeNotWords(List<String> words) {
-        words.removeIf(word -> !wordProcessorService.ifWord(word));
+        words.removeIf(word -> !wordProcessorService.isWord(word));
     }
 }

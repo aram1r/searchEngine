@@ -1,20 +1,34 @@
 package searchengine.services.wordProcessorService;
 
 import lombok.RequiredArgsConstructor;
-import org.apache.lucene.morphology.LuceneMorphology;
+import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
+import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class WordProcessorService {
-    private final LuceneMorphology luceneMorphology;
 
-    public boolean ifWord(String word) {
-        return !luceneMorphology.getMorphInfo(word).get(0).contains("СОЮЗ") &&
-                !luceneMorphology.getMorphInfo(word).get(0).contains("ПРЕДЛ") &&
-                !luceneMorphology.getMorphInfo(word).get(0).contains("МЕЖД") &&
-                !luceneMorphology.getMorphInfo(word).get(0).contains("ЧАСТ") &&
-                !luceneMorphology.getMorphInfo(word).get(0).contains("МС");
+    private final EnglishLuceneMorphology englishLuceneMorphology;
+    private final RussianLuceneMorphology russianLuceneMorphology;
+
+    public boolean isWord(String word) {
+        if (word.matches("[A-Za-z0-9-!@#$%^&*()_+=}{\\[\\],.<>?\"']")) {
+            return false;
+        }
+        return !russianLuceneMorphology.getMorphInfo(word).get(0).contains("СОЮЗ") &&
+                !russianLuceneMorphology.getMorphInfo(word).get(0).contains("ПРЕДЛ") &&
+                !russianLuceneMorphology.getMorphInfo(word).get(0).contains("МЕЖД") &&
+                !russianLuceneMorphology.getMorphInfo(word).get(0).contains("ЧАСТ") &&
+                !russianLuceneMorphology.getMorphInfo(word).get(0).contains("МС");
+    }
+
+    public boolean isEnglishWord(String word) {
+        return !englishLuceneMorphology.getMorphInfo(word).get(0).contains("CONJ") &&
+                !englishLuceneMorphology.getMorphInfo(word).get(0).contains("PN") &&
+                !englishLuceneMorphology.getMorphInfo(word).get(0).contains("ADVERB");
     }
 
     public boolean isLink(String word) {

@@ -98,7 +98,7 @@ public class SeparationLemmaTaskImpl extends Task {
                         if (e.length()>2) {
                             String word = luceneMorphology.getNormalForms(e.replaceAll("[?!:;,.]?", ""))
                                     .get(0).toLowerCase();
-                            if (word.length()>1 && wordProcessorService.ifWord(word)) {
+                            if (word.length()>1 && wordProcessorService.isWord(word)) {
                                 putOrIncreaseFrequency(word);
                             }
                         }
