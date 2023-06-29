@@ -58,7 +58,6 @@ public class SearchService {
         if (searchQuery.getQuery().isEmpty()) {
             searchResult.setResult(false);
             searchResult.setError("Задан пустой поисковый запрос");
-            return searchResult;
         } else {
             List<Page> resultPages = getPages(searchQuery);
             if (resultPages.size()!=0) {
@@ -98,8 +97,8 @@ public class SearchService {
 //            }
 //            searchResult.setData(dataArrayList);
 
-            return searchResult;
         }
+        return searchResult;
     }
 
     private HashMap<Page, String> getSnippets(List<Page> resultPages, SearchQuery searchQuery) {
@@ -118,9 +117,9 @@ public class SearchService {
                 try {
                     if (wordProcessorService.isWord(e)) {
                         if (wordProcessorService.isRussianWord(e)) {
-                            russianLuceneMorphology.getNormalForms(e).get(0);
+                            e = russianLuceneMorphology.getNormalForms(e).get(0);
                         } else if (wordProcessorService.isEnglishWord(e)) {
-                            englishLuceneMorphology.getNormalForms(e).get(0);
+                            e = englishLuceneMorphology.getNormalForms(e).get(0);
                         }
 
                     }
