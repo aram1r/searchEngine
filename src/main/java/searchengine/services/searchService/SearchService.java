@@ -3,6 +3,8 @@ package searchengine.services.searchService;
 import lombok.RequiredArgsConstructor;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.WrongCharaterException;
+import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
+import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.safety.Safelist;
@@ -28,7 +30,9 @@ public class SearchService {
     final WordProcessorService wordProcessorService;
 
     final PageRepository pageRepository;
-    final LuceneMorphology luceneMorphology;
+    final RussianLuceneMorphology russianLuceneMorphology;
+
+    final EnglishLuceneMorphology englishLuceneMorphology;
     public ResponseEntity<SearchResult> search(String query, Integer offset, Integer limit, String site) {
         SearchQuery searchQuery = new SearchQuery(query, offset, limit, new ArrayList<>());
         SearchResult searchResult = new SearchResult();
@@ -113,7 +117,12 @@ public class SearchService {
             wordsFromPage.forEach(e -> {
                 try {
                     if (wordProcessorService.isWord(e)) {
-                        luceneMorphology.getNormalForms(e).get(0);
+                        if (wordProcessorService.isRussianWord(e)) {
+                            russianLuceneMorphology.getNormalForms(e).get(0);
+                        } else if (wordProcessorService.isEnglishWord(e)) {
+                            englishLuceneMorphology.getNormalForms(e).get(0);
+                        }
+
                     }
                 } catch (WrongCharaterException ignored) {
 
@@ -224,7 +233,7 @@ public class SearchService {
     private List<Lemma> getLemmasFromDB(List<String> words, Site site) {
         ArrayList<Lemma> lemmata = new ArrayList<>();
         for (String word : words) {
-            Lemma lemma = lemmaRepository.findLemmaBySiteIdAndLemma(site.getId(), luceneMorphology.getNormalForms(word).get(0));
+            Lemma lemma = lemmaRepository.findLemmaBySiteIdAndLemma(site.getId(), russianLuceneMorphology.getNormalForms(word).get(0));
             if (lemma!=null) {
                 lemmata.add(lemma);
             }

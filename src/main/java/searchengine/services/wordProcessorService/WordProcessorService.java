@@ -15,9 +15,10 @@ public class WordProcessorService {
     private final RussianLuceneMorphology russianLuceneMorphology;
 
     public boolean isWord(String word) {
-        if (word.matches("[A-Za-z0-9-!@#$%^&*()_+=}{\\[\\],.<>?\"']")) {
-            return false;
-        }
+        return word.matches("[A-Za-z0-9-!@#$%^&*()_+=}{\\[\\],.<>?\"']");
+    }
+
+    public boolean isRussianWord(String word) {
         return !russianLuceneMorphology.getMorphInfo(word).get(0).contains("СОЮЗ") &&
                 !russianLuceneMorphology.getMorphInfo(word).get(0).contains("ПРЕДЛ") &&
                 !russianLuceneMorphology.getMorphInfo(word).get(0).contains("МЕЖД") &&
