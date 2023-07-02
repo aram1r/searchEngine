@@ -1,10 +1,6 @@
 package searchengine.services.searchService;
 
 import lombok.RequiredArgsConstructor;
-import org.apache.lucene.morphology.LuceneMorphology;
-import org.apache.lucene.morphology.WrongCharaterException;
-import org.apache.lucene.morphology.english.EnglishLuceneMorphology;
-import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.safety.Safelist;
@@ -16,7 +12,7 @@ import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.services.wordProcessorService.WordProcessorService;
+import searchengine.services.wordService.WordService;
 
 import java.util.*;
 
@@ -27,12 +23,9 @@ public class SearchService {
     final SiteRepository siteRepository;
     final LemmaRepository lemmaRepository;
     final IndexRepository indexRepository;
-    final WordProcessorService wordProcessorService;
-
+    final WordService wordService;
     final PageRepository pageRepository;
-    final RussianLuceneMorphology russianLuceneMorphology;
 
-    final EnglishLuceneMorphology englishLuceneMorphology;
     public ResponseEntity<SearchResult> search(String query, Integer offset, Integer limit, String site) {
         SearchQuery searchQuery = new SearchQuery(query, offset, limit, new ArrayList<>());
         SearchResult searchResult = new SearchResult();
@@ -112,21 +105,8 @@ public class SearchService {
             String content = Jsoup.clean(page.getContent(), Safelist.simpleText()).toLowerCase();
             //Получаем массив слов из контента
             ArrayList<String> wordsFromPage = new ArrayList<>(Arrays.asList(content.split("\\s+")));
-            //TODO вылетает при попытке проверить слово ли это (вылетает на цифрах и английских буквах)
-            wordsFromPage.forEach(e -> {
-                try {
-                    if (wordProcessorService.isWord(e)) {
-                        if (wordProcessorService.isRussianWord(e)) {
-                            e = russianLuceneMorphology.getNormalForms(e).get(0);
-                        } else if (wordProcessorService.isEnglishWord(e)) {
-                            e = englishLuceneMorphology.getNormalForms(e).get(0);
-                        }
-
-                    }
-                } catch (WrongCharaterException ignored) {
-
-                }
-            });
+            //TODO проверить присваивает ли значение строке
+            wordsFromPage.forEach(wordService::getNormalForm);
 
             List<String> stringsForSnippets = getStringForSnippets(wordsFromPage, words, content);
 //            int firstWord = wordsFromPage.indexOf(words.get(0));
@@ -232,9 +212,12 @@ public class SearchService {
     private List<Lemma> getLemmasFromDB(List<String> words, Site site) {
         ArrayList<Lemma> lemmata = new ArrayList<>();
         for (String word : words) {
-            Lemma lemma = lemmaRepository.findLemmaBySiteIdAndLemma(site.getId(), russianLuceneMorphology.getNormalForms(word).get(0));
-            if (lemma!=null) {
-                lemmata.add(lemma);
+            word = wordService.getNormalForm(word);
+            if (word != null) {
+                Lemma lemma = lemmaRepository.findLemmaBySiteIdAndLemma(site.getId(), wordService.getNormalForm(word));
+                if (lemma!=null) {
+                    lemmata.add(lemma);
+                }
             }
         }
         return lemmata;
@@ -245,6 +228,6 @@ public class SearchService {
     }
 
     private void removeNotWords(List<String> words) {
-        words.removeIf(word -> !wordProcessorService.isWord(word));
+        words.removeIf(word -> (!wordService.isEnglishWord(word) || !wordService.isRussianWord(word)));
     }
 }

@@ -10,7 +10,7 @@ import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.services.indexService.taskPools.Task;
 import searchengine.services.indexService.taskPools.TaskPool;
-import searchengine.services.wordProcessorService.WordProcessorService;
+import searchengine.services.wordService.WordService;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,7 +29,7 @@ public class SeparationLemmaTaskImpl extends Task {
 
     private static LuceneMorphology luceneMorphology;
 
-    private static WordProcessorService wordProcessorService;
+    private static WordService wordService;
 
     private boolean parent;
 
@@ -40,8 +40,8 @@ public class SeparationLemmaTaskImpl extends Task {
     private static IndexRepository indexRepository;
 
     @Autowired
-    public void setWordProcessorService(WordProcessorService wordProcessorService) {
-        SeparationLemmaTaskImpl.wordProcessorService = wordProcessorService;
+    public void setWordService(WordService wordService) {
+        SeparationLemmaTaskImpl.wordService = wordService;
     }
 
     @Autowired
@@ -88,17 +88,18 @@ public class SeparationLemmaTaskImpl extends Task {
                 try {
                     List<String> wordsToProcess = new ArrayList<>();
                     words.forEach(e -> {
-                        if (!wordProcessorService.isLink(e)) {
-                            wordsToProcess.add(e.replaceAll("[A-Za-z0-9=+/;:.'@&%," +
-                                    "\"<>!|·\\[\\]\\-_$(){}#©\s]+", ""));
+                        if (!wordService.isLink(e)) {
+                            wordsToProcess.add(e.replaceAll("[\\d=+/'@&%," +
+                                    "\"<>!|·\\[\\]\\-_$(){}#©\\s?:;.]+", ""));
                         }
                     });
                     wordsToProcess.removeAll(Arrays.asList("", null));
                     wordsToProcess.forEach(e-> {
                         if (e.length()>2) {
-                            String word = luceneMorphology.getNormalForms(e.replaceAll("[?!:;,.]?", ""))
-                                    .get(0).toLowerCase();
-                            if (word.length()>1 && wordProcessorService.isWord(word)) {
+                            //Переводим слово строку в нижний регистр
+                            String word = e.toLowerCase();
+                            word = wordService.getNormalForm(word);
+                            if (word.length()>1 && wordService.isWord(word)) {
                                 putOrIncreaseFrequency(word);
                             }
                         }
