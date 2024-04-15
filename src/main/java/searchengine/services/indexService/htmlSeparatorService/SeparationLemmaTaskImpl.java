@@ -2,6 +2,8 @@ package searchengine.services.indexService.htmlSeparatorService;
 
 import lombok.*;
 import org.apache.lucene.morphology.LuceneMorphology;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Safelist;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.stereotype.Component;
@@ -10,7 +12,7 @@ import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.services.indexService.taskPools.Task;
 import searchengine.services.indexService.taskPools.TaskPool;
-import searchengine.services.wordService.WordService;
+import searchengine.services.wordService.WordServiceImpl;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,7 +31,7 @@ public class SeparationLemmaTaskImpl extends Task {
 
     private static LuceneMorphology luceneMorphology;
 
-    private static WordService wordService;
+    private static WordServiceImpl wordServiceImpl;
 
     private boolean parent;
 
@@ -40,8 +42,8 @@ public class SeparationLemmaTaskImpl extends Task {
     private static IndexRepository indexRepository;
 
     @Autowired
-    public void setWordService(WordService wordService) {
-        SeparationLemmaTaskImpl.wordService = wordService;
+    public void setWordServiceImpl(WordServiceImpl wordServiceImpl) {
+        SeparationLemmaTaskImpl.wordServiceImpl = wordServiceImpl;
     }
 
     @Autowired
@@ -79,8 +81,9 @@ public class SeparationLemmaTaskImpl extends Task {
             collectResults(subtasks);
         } else {
             if (!getExecutorService().isShutdown()) {
-
-                String text = getPage().getContent();
+                //Получаем body из страницы
+                String text = Jsoup.clean(Jsoup.parseBodyFragment(getPage().getContent()).getElementsByTag("body").get(0).toString(),
+                        Safelist.simpleText());
 
                 addPageToIndexes();
 
@@ -88,7 +91,7 @@ public class SeparationLemmaTaskImpl extends Task {
                 try {
                     List<String> wordsToProcess = new ArrayList<>();
                     words.forEach(e -> {
-                        if (!wordService.isLink(e)) {
+                        if (!wordServiceImpl.isLink(e)) {
                             wordsToProcess.add(e.replaceAll("[\\d=+/'@&%," +
                                     "\"<>!|·\\[\\]\\-_$(){}#©\\s?:;.]+", ""));
                         }
@@ -98,8 +101,8 @@ public class SeparationLemmaTaskImpl extends Task {
                         if (e.length()>2) {
                             //Переводим слово строку в нижний регистр
                             String word = e.toLowerCase();
-                            word = wordService.getNormalForm(word);
-                            if (word.length()>1 && wordService.isWord(word)) {
+                            word = wordServiceImpl.getNormalForm(word);
+                            if (word!=null) {
                                 putOrIncreaseFrequency(word);
                             }
                         }
@@ -147,35 +150,31 @@ public class SeparationLemmaTaskImpl extends Task {
     private void increaseFrequency(String word) {
         Lemma lemma = result.get(word);
         lemma.setFrequency(lemma.getFrequency()+1);
-//        result.put(word, lemma);
     }
 
         private void collectResults(HashMap<Page, SeparationLemmaTaskImpl> subtasks) {
-        try {
             subtasks.forEach((k, v) -> {
                 if (!getTaskPool().isShutdown()) {
                     v.join();
                 }
             });
-//            lemmaRepository.saveAll(result.values());
             saveLemmas();
             saveIndexes();
             getSite().setStatus(Status.INDEXED);
             getSiteRepository().save(getSite());
-        } catch (JpaSystemException ignored) {
-
-        } catch (Exception e) {
-            getLogger().warn(e.getMessage());
-            System.out.println("Exception during collecting lemma separation " + e.getMessage() + " " + e.getClass());
-        }
     }
 
     private void saveLemmas() {
         for (Lemma lemma : result.values()) {
-            if (lemma!=null) {
-                lemma.setId(null);
-                lemmaRepository.save(lemma);
+            try {
+                if (lemma!=null) {
+                    lemma.setId(null);
+                    lemmaRepository.save(lemma);
+                }
+            } catch (Exception e) {
+                System.out.println(e);
             }
+
         }
         System.out.println("Lemmas saved");
     }

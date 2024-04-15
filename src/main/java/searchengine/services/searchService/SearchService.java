@@ -12,7 +12,7 @@ import searchengine.repositories.IndexRepository;
 import searchengine.repositories.LemmaRepository;
 import searchengine.repositories.PageRepository;
 import searchengine.repositories.SiteRepository;
-import searchengine.services.wordService.WordService;
+import searchengine.services.wordService.WordServiceImpl;
 
 import java.util.*;
 
@@ -23,7 +23,7 @@ public class SearchService {
     final SiteRepository siteRepository;
     final LemmaRepository lemmaRepository;
     final IndexRepository indexRepository;
-    final WordService wordService;
+    final WordServiceImpl wordServiceImpl;
     final PageRepository pageRepository;
 
     public ResponseEntity<SearchResult> search(String query, Integer offset, Integer limit, String site) {
@@ -52,7 +52,7 @@ public class SearchService {
             searchResult.setResult(false);
             searchResult.setError("Задан пустой поисковый запрос");
         } else {
-            List<Page> resultPages = getPages(searchQuery);
+            List<Page> resultPages = getResultPages(searchQuery);
             if (resultPages.size()!=0) {
                 //TODO написать метод поиска сниппетов
                 HashMap<Page, String> snippets = getSnippets(resultPages, searchQuery);
@@ -94,6 +94,7 @@ public class SearchService {
         return searchResult;
     }
 
+    //TODO Поиск сниппетов
     private HashMap<Page, String> getSnippets(List<Page> resultPages, SearchQuery searchQuery) {
         HashMap<Page, String> snippets = new HashMap<>();
 
@@ -101,12 +102,13 @@ public class SearchService {
         List<String> words = extractLemmas(searchQuery);
 
         for (Page page : resultPages) {
-            //Получаем контент с страницы очищаем от тэгов и понижаем
-            String content = Jsoup.clean(page.getContent(), Safelist.simpleText()).toLowerCase();
+            //Получаем контент с страницы очищаем от тэгов и переводим в нижний регистр
+            String content = Jsoup.clean(new Document(page.getContent()).getElementsByTag("body").toString(),
+                    Safelist.simpleText()).toLowerCase();
             //Получаем массив слов из контента
             ArrayList<String> wordsFromPage = new ArrayList<>(Arrays.asList(content.split("\\s+")));
-            //TODO проверить присваивает ли значение строке
-            wordsFromPage.forEach(wordService::getNormalForm);
+            //TODO Скорей всего не приводит к нормальной форме слова со страницы, потому не работает метод сниппетов
+            wordsFromPage.forEach(wordServiceImpl::getNormalForm);
 
             List<String> stringsForSnippets = getStringForSnippets(wordsFromPage, words, content);
 //            int firstWord = wordsFromPage.indexOf(words.get(0));
@@ -128,7 +130,7 @@ public class SearchService {
         return null;
     }
 
-    public List<Page> getPages(SearchQuery searchQuery) {
+    public List<Page> getResultPages(SearchQuery searchQuery) {
         List<Page> result = new ArrayList<>();
         List<Index> indexResult = new ArrayList<>();
         List<String> words = extractLemmas(searchQuery);
@@ -160,14 +162,13 @@ public class SearchService {
     }
 
 
-    // дописать метод чтобы возвращал список строк в которых потом искать совпадает ли они с поисковым запросом
+    //TODO дописать метод чтобы возвращал список строк в которых потом искать совпадает ли они с поисковым запросом
     //(т.к. метод ищет подстроку по начальному слову и конечному
     public List<String> getStringForSnippets(ArrayList<String> wordsFromPage, List<String> words, String content) {
         List<String> result = new ArrayList<>();
 
         int firstWordPosition;
         int lastWordPosition;
-        //TODO метод не работает зацикливается стартовый индекс не двигается
         do {
             //Получаем первую позицию слова в тексте со страницы
             int firstWord = wordsFromPage.indexOf(words.get(0));
@@ -212,9 +213,9 @@ public class SearchService {
     private List<Lemma> getLemmasFromDB(List<String> words, Site site) {
         ArrayList<Lemma> lemmata = new ArrayList<>();
         for (String word : words) {
-            word = wordService.getNormalForm(word);
+            word = wordServiceImpl.getNormalForm(word);
             if (word != null) {
-                Lemma lemma = lemmaRepository.findLemmaBySiteIdAndLemma(site.getId(), wordService.getNormalForm(word));
+                Lemma lemma = lemmaRepository.findLemmaBySiteIdAndLemma(site.getId(), wordServiceImpl.getNormalForm(word));
                 if (lemma!=null) {
                     lemmata.add(lemma);
                 }
@@ -228,6 +229,6 @@ public class SearchService {
     }
 
     private void removeNotWords(List<String> words) {
-        words.removeIf(word -> (!wordService.isEnglishWord(word) || !wordService.isRussianWord(word)));
+        words.removeIf(word -> (!wordServiceImpl.isEnglishWord(word) || !wordServiceImpl.isRussianWord(word)));
     }
 }

@@ -2,6 +2,7 @@ package searchengine.services.indexService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.configuration.SitesList;
@@ -70,23 +71,31 @@ public class IndexServiceImpl implements IndexService{
     //во времени.
     @Override
     public ResponseEntity<String> startIndexing() {
-        deleteAllIndexes();
-        deleteAllLemmas();
-        deleteAllPages();
-        deleteAllSites();
-        for (Site site : sitesList.getSites()) {
-            saveSite(site);
+        try {
+            deleteAllIndexes();
+            deleteAllLemmas();
+            deleteAllPages();
+            deleteAllSites();
+            for (Site site : sitesList.getSites()) {
+                saveSite(site);
+            }
+            for (Site site : siteRepository.findAll()) {
+                indexSite(site);
+            }
+            return new ResponseEntity<>(HttpStatusCode.valueOf(200));
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatusCode.valueOf(500));
         }
-        for (Site site : siteRepository.findAll()) {
-            indexSite(site);
-        }
-        return null;
     }
 
     public ResponseEntity<String> stopIndexing() {
-        executorService.shutdown();
-        taskPool.shutdown();
-        return null;
+        try {
+            executorService.shutdown();
+            taskPool.shutdown();
+            return new ResponseEntity<>(HttpStatusCode.valueOf(200));
+        } catch (Exception e) {
+            return new ResponseEntity<>(HttpStatusCode.valueOf(500));
+        }
     }
 
     public synchronized void saveSite(Site site) {
